@@ -1,0 +1,33 @@
+﻿[dotenv@17.3.1] injecting env (1) from .env -- tip: ­ƒöÉ encrypt with Dotenvx: https://dotenvx.com
+node.exe : C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\cli
+ent\src\runtime\utils\validatePrismaClientOptions.ts:239
+En línea: 1 Carácter: 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (C:\Users\rokat\...tOptions.ts:239:String) [] 
+   , RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+      throw new PrismaClientConstructorValidationError(
+            ^
+
+PrismaClientConstructorValidationError: Unknown property datasourceUrl provided to 
+PrismaClient constructor.
+Read more at https://pris.ly/d/client-constructor
+    at validatePrismaClientOptions (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform
+\node_modules\@prisma\client\src\runtime\utils\validatePrismaClientOptions.ts:239:13)
+    at new t (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\
+client\src\runtime\getPrismaClient.ts:281:7)
+    at <anonymous> 
+(C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\prisma\seed.ts:10:16)
+    at Object.<anonymous> 
+(C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\prisma\seed.ts:75:6)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_mod
+ules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+
+Node.js v22.22.0

@@ -1,0 +1,32 @@
+﻿node.exe : 
+En línea: 1 Carácter: 1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error: Transform failed with 1 error:
+C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\prisma\seed.ts:20:12: ERROR: 
+Expected ";" but found ":"
+    at failureErrorWithLog (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_mo
+dules\esbuild\lib\main.js:1467:15)
+    at C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\esbuild\lib\mai
+n.js:736:50
+    at responseCallbacks.<computed> (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platfor
+m\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_m
+odules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_
+modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v22.22.0

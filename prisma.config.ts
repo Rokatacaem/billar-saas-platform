@@ -1,7 +1,10 @@
 import { defineConfig } from '@prisma/config';
-import 'dotenv/config'; // 👈 Esto cargará tu DATABASE_URL del archivo .env
+import 'dotenv/config';
 
 export default defineConfig({
+    migrations: {
+        seed: 'npx tsx prisma/seed.ts',
+    },
     datasource: {
         url: process.env.DATABASE_URL,
     },
