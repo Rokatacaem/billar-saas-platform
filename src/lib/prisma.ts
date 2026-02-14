@@ -1,20 +1,40 @@
 import { PrismaClient } from "@prisma/client";
-import { auth } from "@/auth"; // Lo configuraremos en el siguiente paso
+import { auth } from "@/auth";
 
-export const prisma = new PrismaClient().$extends({
-    query: {
-        $allModels: {
-            async $allOperations({ model, operation, args, query }) {
-                const session = await auth();
-                const tenantId = session?.user?.tenantId;
+const prismaClientSingleton = () => {
+    return new PrismaClient().$extends({
+        query: {
+            $allOperations({ model, operation, args, query }) {
+                return (async () => {
+                    const session = await auth();
+                    const tenantId = session?.user?.tenantId;
 
-                // Si hay un tenantId en la sesión, lo inyectamos automáticamente en los filtros
-                if (tenantId && ['findMany', 'findFirst', 'count', 'update', 'delete'].includes(operation)) {
-                    args.where = { ...args.where, tenantId };
-                }
+                    // Operaciones que requieren inyección de filtro por tenantId
+                    const filterOperations = ['findMany', 'findFirst', 'count', 'update', 'delete', 'updateMany', 'deleteMany'];
 
-                return query(args);
+                    if (tenantId && filterOperations.includes(operation)) {
+                        // Forzamos el tipo para que TS permita manipular 'where' de forma segura
+                        const anyArgs = args as any;
+                        anyArgs.where = { ...anyArgs.where, tenantId };
+                    }
+
+                    // Para la creación, aseguramos que el registro pertenezca al tenant
+                    if (tenantId && operation === 'create') {
+                        const anyArgs = args as any;
+                        anyArgs.data = { ...anyArgs.data, tenantId };
+                    }
+
+                    return query(args);
+                })();
             },
         },
-    },
-});
+    });
+};
+
+declare global {
+    var prisma: undefined | ReturnType<typeof prismaClientSingleton>;
+}
+
+export const prisma = globalThis.prisma ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== "production") globalThis.prisma = prisma;
