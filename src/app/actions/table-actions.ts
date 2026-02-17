@@ -9,9 +9,11 @@ export async function toggleTableStatus(tableId: string, currentStatus: string, 
     try {
         // ... (auth checks remain same)
         const session = await auth();
-        // ...
 
-        if (!session?.user?.tenantId) { /* ... */ }
+        if (!session?.user?.tenantId) {
+            return { success: false, error: "No autorizado" };
+        }
+
         const tenantId = session.user.tenantId;
 
         // ... (fetch table)
