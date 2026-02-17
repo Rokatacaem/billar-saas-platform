@@ -107,7 +107,7 @@ export default function ReportsClient({ initialStats, initialChartData, tenantSl
                             <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                             <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
                             <Tooltip
-                                formatter={(val: number) => `$${val}`}
+                                formatter={(val: number | undefined) => `$${val ?? 0}`}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
                             <Legend />
