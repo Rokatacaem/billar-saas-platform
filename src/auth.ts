@@ -5,7 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-    trustHost: true,
     adapter: PrismaAdapter(prisma),
     ...authConfig,
     providers: [
