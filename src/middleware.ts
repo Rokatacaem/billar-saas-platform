@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 const { auth } = NextAuth(authConfig);
 
-export default auth((req) => {
+try {
     const url = req.nextUrl;
     const hostname = req.headers.get("host") || "";
     // Define tu dominio raíz (ej. localhost:3000 o tuapp.cl)
@@ -21,10 +21,6 @@ export default auth((req) => {
         if (!url.pathname.startsWith('/api') && !url.pathname.startsWith('/_next') && !url.pathname.startsWith('/static')) {
 
             // Protected Routes: /admin/*, /pos/*
-            // We also might want to protect /dashboard or the root of the app if it's private?
-            // User requirement: Protect /tenant/[slug]/admin/* and /tenant/[slug]/pos/*
-            // Since we rewrite to /tenant/[slug]/..., the Incoming path is just /admin or /pos
-
             const isProtectedRoute = url.pathname.startsWith('/admin') || url.pathname.startsWith('/pos');
 
             if (isProtectedRoute) {
@@ -39,14 +35,6 @@ export default auth((req) => {
                 // 2. Tenant Isolation (Identity Shield)
                 if (session.user.tenantSlug !== subdominio.toLowerCase()) {
                     console.warn(`🚨 Security Alert: User ${session.user.email} (Tenant: ${session.user.tenantSlug}) tried to access ${subdominio}`);
-                    // Return 403 Forbidden or Redirect to their own dashboard?
-                    // Requirement: Deny access.
-                    // We can rewrite to a 403 page or just return a text response for now.
-                    // Better UX: Redirect home or show error.
-                    // Let's return a JSON error/rewrite to a 403 page if we had one.
-                    // For now, NextResponse.rewrite to a 403 path (simulate) or just throw error?
-                    // Next.js middleware doesn't strictly support "sending HTML" easily without rewrite.
-                    // Let's rewrite to a standard /403 page (we should probably create one, but for now / is safer)
                     return NextResponse.rewrite(new URL('/403', req.url));
                 }
 
@@ -70,6 +58,10 @@ export default auth((req) => {
     }
 
     return NextResponse.next();
+} catch (e) {
+    console.error("🔥 Middleware Execution Error:", e);
+    return NextResponse.next();
+}
 });
 
 export const config = {
