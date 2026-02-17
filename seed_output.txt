@@ -1,0 +1,57 @@
+[dotenv@17.3.1] injecting env (2) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🔍 Checking DATABASE_URL: Defined
+🚀 Iniciando el sembrado de datos en Neon (Adapter Mode)...
+(node:26768) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✅ Tenant listo: Club de Billar Santiago
+✅ Tenant listo: Akapoolco Billar & Bar
+👤 Usuario administrador creado: rodrigo@akapoolco.cl
+🎱 Antigravity: Poblando infraestructura de mesas...
+❌ Error fatal en el seed: PrismaClientValidationError: 
+Invalid `prisma.table.upsert()` invocation in
+C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\prisma\seed.ts:83:32
+
+  80 
+  81 for (const club of clubs) {
+  82     for (let i = 1; i <= club.count; i++) {
+→ 83         await prisma.table.upsert({
+               where: {
+                 number_tenantId: {
+                 ~~~~~~~~~~~~~~~
+                   number: 1,
+                   tenantId: "cmln1i3000000dkwry7wrol19"
+                 },
+             ?   id?: String,
+             ?   AND?: TableWhereInput | TableWhereInput[],
+             ?   OR?: TableWhereInput[],
+             ?   NOT?: TableWhereInput | TableWhereInput[],
+             ?   number?: IntFilter | Int,
+             ?   status?: StringFilter | String,
+             ?   tenantId?: StringFilter | String,
+             ?   tenant?: TenantScalarRelationFilter | TenantWhereInput
+               },
+               update: {},
+               create: {
+                 number: 1,
+                 status: "AVAILABLE",
+                 tenantId: "cmln1i3000000dkwry7wrol19"
+               }
+             })
+
+Unknown argument `number_tenantId`. Available options are marked with ?.
+    at throwValidationException (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\client\src\runtime\core\errorRendering\throwValidationException.ts:46:9)
+    at zr.handleRequestError (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\client\src\runtime\RequestHandler.ts:202:7)
+    at zr.handleAndLogRequestError (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+    at zr.request (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async a (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:807:24)
+    at async main (C:\Users\rokat\OneDrive\Proyectos\billar-saas-platform\prisma\seed.ts:83:13) {
+  clientVersion: '7.4.0'
+}

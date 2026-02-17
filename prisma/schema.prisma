@@ -20,6 +20,7 @@ model Tenant {
   primaryColor   String     @default("#1a4d2e")
   secondaryColor String     @default("#ffffff")
   logoUrl        String?
+  baseRate       Float      @default(100.0) // Tarifa por minuto por defecto
   settings       Json?      
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
@@ -27,6 +28,12 @@ model Tenant {
   users          User[]
   members        Member[]
   tables         Table[]
+  usageLogs      UsageLog[]
+  products       Product[]
+  dailyBalances  DailyBalance[]
+  serviceRequests ServiceRequest[]
+  paymentRecords PaymentRecord[]
+  systemLogs     SystemLog[]
 }
 
 model User {
@@ -47,8 +54,20 @@ model Member {
   id        String   @id @default(cuid())
   name      String
   email     String?
+  phone     String?
+  rut       String?  // Configurable ID
+  discount  Float    @default(0.0) // Percentage (0-100)
+  
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  usageLogs UsageLog[]
+  
+  amountSpent  Float @default(0.0) // Metric for "Best Customer"
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([tenantId])
 }
 
@@ -58,5 +77,159 @@ model Table {
   status    String   @default("available")
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lastSessionStart DateTime?
+  currentSessionId String?
+  usageLogs        UsageLog[]
+  serviceRequests  ServiceRequest[] // QR Notifications
+  
   @@index([tenantId])
+  @@unique([number, tenantId])
+}
+
+model UsageLog {
+  id              String   @id @default(cuid())
+  tableId         String
+  table           Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationMinutes Int?
+  amountCharged   Float    @default(0.0) // Final Total
+  
+  discountApplied Float    @default(0.0) // Amount saved
+  memberId        String?
+  member          Member?  @relation(fields: [memberId], references: [id])
+  
+  paymentStatus   String   @default("PENDING") // PENDING, PAID
+  paymentRecords  PaymentRecord[]
+
+  items           OrderItem[]
+  createdAt       DateTime @default(now())
+
+  dailyBalanceId  String?
+  dailyBalance    DailyBalance? @relation(fields: [dailyBalanceId], references: [id])
+
+  @@index([tenantId])
+  @@index([tableId])
+  @@index([dailyBalanceId])
+  @@index([memberId])
+}
+
+model PaymentRecord {
+  id            String   @id @default(cuid())
+  amount        Float
+  method        String   // CASH, CARD, TRANSFER
+  status        String   // COMPLETED, FAILED, PENDING
+  provider      String   // STRIPE, WEBPAY, CASHy
+  transactionId String?  // External ID
+
+  usageLogId    String
+  usageLog      UsageLog @relation(fields: [usageLogId], references: [id], onDelete: Restrict)
+
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([usageLogId])
+}
+
+
+model DailyBalance {
+  id              String   @id @default(cuid())
+  date            DateTime @default(now())
+  totalRevenue    Float    @default(0.0)
+  timeRevenue     Float    @default(0.0)
+  productRevenue  Float    @default(0.0)
+  closedBy        String   // User ID or Name
+  
+  usageLogs       UsageLog[]
+  
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Product {
+  id        String   @id @default(cuid())
+  name      String
+  price     Float
+  stock     Int      @default(0)
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([tenantId])
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  quantity  Int
+  unitPrice Float // Precio al momento de la venta (snapshot)
+  totalPrice Float // quantity * unitPrice
+  
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict) // No borrar producto si tiene ventas
+  
+  usageLogId String
+  usageLog   UsageLog @relation(fields: [usageLogId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([usageLogId])
+  @@index([productId])
+}
+
+enum RequestType {
+  CALL
+  ORDER
+}
+
+enum RequestStatus {
+  PENDING
+  ATTENDED
+  COMPLETED
+}
+
+model ServiceRequest {
+  id        String   @id @default(cuid())
+  type      RequestType   @default(CALL)
+  status    RequestStatus @default(PENDING)
+  message   String?
+  
+  tableId   String
+  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tableId])
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String   // INFO, WARN, ERROR, CRITICAL
+  message   String
+  details   Json?
+  tenantId  String?  
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([level])
+  @@index([tenantId])
+  @@index([createdAt])
 }
