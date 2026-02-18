@@ -91,6 +91,7 @@ export async function POST(req: Request) {
         // Extraer datos relevantes según proveedor
         let eventId: string;
         let tenantId: string;
+        let usageLogId: string;
         let amount: number;
         let timestamp: number;
 
@@ -98,23 +99,25 @@ export async function POST(req: Request) {
             eventId = event.id;
             // Ajustar según estructura real de Stripe
             tenantId = event.data?.object?.metadata?.tenantId;
+            usageLogId = event.data?.object?.metadata?.usageLogId;
             amount = event.data?.object?.amount / 100; // Stripe usa centavos
             timestamp = event.created;
         } else {
             // Webpay
             eventId = event.transaction_id || event.id;
             tenantId = event.metadata?.tenantId;
+            usageLogId = event.metadata?.usageLogId;
             amount = event.amount;
             timestamp = Math.floor(Date.now() / 1000);
         }
 
-        if (!eventId || !tenantId || !amount) {
+        if (!eventId || !tenantId || !amount || !usageLogId) {
             await logSecurityEvent({
                 type: 'WEBHOOK_INVALID_PAYLOAD',
                 severity: ThreatLevel.MEDIUM,
                 message: 'Webhook missing required fields',
                 ip: clientIP,
-                details: { provider, eventId, tenantId }
+                details: { provider, eventId, tenantId, usageLogId }
             });
 
             return NextResponse.json(
@@ -145,8 +148,10 @@ export async function POST(req: Request) {
         await prisma.paymentRecord.create({
             data: {
                 tenantId,
+                usageLogId,
                 amount,
                 method: provider.toUpperCase(),
+                provider: provider.toUpperCase(), // Schema requires provider field
                 status: 'COMPLETED',
                 idempotencyKey,
                 webhookData: event, // Guardar payload completo para auditoría
