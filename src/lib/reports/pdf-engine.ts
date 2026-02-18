@@ -85,7 +85,7 @@ function addHeader(doc: PDFKit.PDFDocument, tenant: ReportTenant, period: string
  * Add footer
  */
 function addFooter(doc: PDFKit.PDFDocument) {
-    constBottomY = doc.page.height - 50;
+    const bottomY = doc.page.height - 50;
 
     doc.fontSize(8)
         .fillColor('#666666')

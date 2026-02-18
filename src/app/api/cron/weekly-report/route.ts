@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { generateReportForTenant } from '@/app/actions/report-generation';
-import { sendEmail, getWeeklyReportEmailTemplate } from '@/lib/email/resend';
 import { logSecurityEvent, ThreatLevel } from '@/lib/security/intrusion-detector';
-import { getCurrentWeek } from '@/lib/reports/pdf-engine';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * 🛡️ CRON: Weekly Executive Report Generation
@@ -11,6 +10,11 @@ import { getCurrentWeek } from '@/lib/reports/pdf-engine';
  * Protected by CRON_SECRET
  */
 export async function GET(req: NextRequest) {
+    // Dynamic imports to avoid build-time issues with PDFKit
+    const { generateReportForTenant } = await import('@/app/actions/report-generation');
+    const { sendEmail, getWeeklyReportEmailTemplate } = await import('@/lib/email/resend');
+    const { getCurrentWeek } = await import('@/lib/reports/pdf-engine');
+
     // 🛡️ SENTINEL: Verify CRON_SECRET
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -143,6 +147,7 @@ export async function GET(req: NextRequest) {
                 });
             }
         }
+
 
         const successCount = results.filter(r => r.success).length;
 

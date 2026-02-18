@@ -6,6 +6,7 @@ declare module "next-auth" {
             tenantId?: string | null
             tenantSlug?: string | null
             role?: string | null
+            tenantStatus?: string | null
         } & DefaultSession["user"]
     }
 
@@ -13,6 +14,7 @@ declare module "next-auth" {
         tenantId?: string | null
         tenantSlug?: string | null
         role?: string | null
+        tenantStatus?: string | null
     }
 }
 
@@ -21,5 +23,6 @@ declare module "next-auth/jwt" {
         tenantId?: string | null
         tenantSlug?: string | null
         role?: string | null
+        tenantStatus?: string | null
     }
 }

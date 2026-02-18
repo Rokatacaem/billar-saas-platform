@@ -32,6 +32,8 @@ export default function ActiveSessionPanel({ table, products, onClose, tenantBas
     // Split Bill State
     const [showSplitModal, setShowSplitModal] = useState(false);
     const [splitReceipts, setSplitReceipts] = useState<SplitPart[]>([]);
+    const [notification, setNotification] = useState<{ message: string, type: string } | null>(null);
+
 
     // Initial Load
     useEffect(() => {
@@ -109,6 +111,16 @@ export default function ActiveSessionPanel({ table, products, onClose, tenantBas
                 </div>
                 <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
+
+            {notification && (
+                <div className={`mb-4 p-3 rounded-md text-sm ${notification.type === 'error' ? 'bg-red-50 text-red-700' :
+                    notification.type === 'success' ? 'bg-green-50 text-green-700' :
+                        'bg-blue-50 text-blue-700'
+                    }`}>
+                    {notification.message}
+                    <button onClick={() => setNotification(null)} className="ml-2 float-right font-bold">×</button>
+                </div>
+            )}
 
             {/* Tabs */}
             <div className="flex gap-2 mb-4">
