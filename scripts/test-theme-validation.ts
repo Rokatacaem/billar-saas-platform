@@ -1,7 +1,4 @@
-import {
-    getThemeForBusinessModel,
-    validateColorContrast,
-    validateThemeAccessibility,
+getThemeForBusinessModel,
     HERITAGE_ELITE_THEME,
     NEON_HIGH_VOLTAGE_THEME
 } from '../src/lib/theming/theme-engine';
