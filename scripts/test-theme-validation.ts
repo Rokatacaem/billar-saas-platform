@@ -4,8 +4,8 @@ import {
     validateThemeAccessibility,
     HERITAGE_ELITE_THEME,
     NEON_HIGH_VOLTAGE_THEME
-} from '../lib/theming/theme-engine';
-import { validateColorContrast as sentinelValidate } from '../lib/sentinel/performance-validator';
+} from '../src/lib/theming/theme-engine';
+import { validateColorContrast as sentinelValidate } from '../src/lib/sentinel/performance-validator';
 
 /**
  * 🛡️ SENTINEL: Theme Validation Tests
