@@ -12,147 +12,235 @@ enum TenantType {
   BUSINESS
 }
 
-model Tenant {
-  id             String     @id @default(cuid())
-  name           String
-  slug           String     @unique
-  type           TenantType @default(BUSINESS)
-  primaryColor   String     @default("#1a4d2e")
-  secondaryColor String     @default("#ffffff")
-  logoUrl        String?
-  baseRate       Float      @default(100.0) // Tarifa por minuto por defecto
-  settings       Json?      
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
 
-  users          User[]
-  members        Member[]
-  tables         Table[]
-  usageLogs      UsageLog[]
-  products       Product[]
-  dailyBalances  DailyBalance[]
+enum TenantPlan {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+// Business Model Segregation
+enum BusinessModel {
+  CLUB_SOCIOS // Enfocado en membresías y cuotas mensuales
+  COMERCIAL // Enfocado en tráfico y consumo directo
+}
+
+// Member Categories for VIP Tier System
+enum MemberCategory {
+  GENERAL // Cliente sin descuento
+  VIP // Cliente recurrente, no paga cuota pero tiene descuento
+  SOCIO // Cliente con membresía activa y cuota al día
+}
+
+model Tenant {
+  id              String       @id @default(cuid())
+  name            String
+  slug            String       @unique
+  type            TenantType   @default(BUSINESS)
+  status          TenantStatus @default(ACTIVE)
+  plan            TenantPlan   @default(PRO)
+  subscriptionEnd DateTime?
+
+  primaryColor   String  @default("#1a4d2e")
+  secondaryColor String  @default("#ffffff")
+  logoUrl        String?
+  baseRate       Float   @default(100.0) // Tarifa por minuto por defecto
+
+  // Localization & Taxes
+  currencyCode   String @default("CLP") // ISO 4217: USD, EUR, MXN
+  currencySymbol String @default("$")
+  locale         String @default("es-CL") // Formatting: 1.000 vs 1,000
+  timezone       String @default("America/Santiago") // IANA Timezone
+
+  taxRate Float  @default(0.19) // 19%
+  taxName String @default("IVA") // Tax Label
+
+  // Business Model & Tier Settings
+  businessModel BusinessModel @default(COMERCIAL)
+  tierSettings  Json? // VIP thresholds, discounts, etc
+
+  settings  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  members         Member[]
+  tables          Table[]
+  usageLogs       UsageLog[]
+  products        Product[]
+  dailyBalances   DailyBalance[]
   serviceRequests ServiceRequest[]
-  paymentRecords PaymentRecord[]
-  systemLogs     SystemLog[]
+  paymentRecords  PaymentRecord[]
+  systemLogs      SystemLog[]
+  // generatedReports GeneratedReport[] // TEMP: Disabled pending schema validator fix
+}
+
+// Lead Management - Sales Funnel
+enum LeadStatus {
+  NEW
+  CONTACTED
+  DEMO_SCHEDULED
+  CONVERTED
+  ARCHIVED
+}
+
+// Landing Page - Lead Capture
+model Lead {
+  id               String     @id @default(cuid())
+  name             String
+  email            String     @unique
+  country          String
+  phone            String?
+  message          String?
+  detectedCurrency String? // Moneda detectada por IP
+  status           LeadStatus @default(NEW) // Sales funnel tracking
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([status])
+  @@index([country])
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  password      String?
-  role          String    @default("USER")
-  tenantId      String
-  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([tenantId])
-}
-
-model Member {
   id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  rut       String?  // Configurable ID
-  discount  Float    @default(0.0) // Percentage (0-100)
-  
+  name      String?
+  email     String?  @unique
+  password  String?
+  role      String   @default("USER")
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  usageLogs UsageLog[]
-  
-  amountSpent  Float @default(0.0) // Metric for "Best Customer"
-  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([tenantId])
 }
 
+model Member {
+  id       String  @id @default(cuid())
+  name     String
+  email    String?
+  phone    String?
+  rut      String? // Configurable ID
+  discount Float   @default(0.0) // Percentage (0-100) - Legacy field
+
+  // VIP Tier System
+  category          MemberCategory @default(GENERAL)
+  membershipStatus  String? // ACTIVE, PENDING_PAYMENT, EXPIRED
+  membershipDueDate DateTime? // Próximo vencimiento de cuota
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  usageLogs   UsageLog[]
+  tierChanges TierChange[] // Audit trail
+
+  amountSpent Float @default(0.0) // Metric for "Best Customer"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([category])
+}
+
 model Table {
-  id        String   @id @default(cuid())
-  number    Int
-  status    String   @default("available")
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id               String           @id @default(cuid())
+  number           Int
+  status           String           @default("available")
+  tenantId         String
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   lastSessionStart DateTime?
   currentSessionId String?
   usageLogs        UsageLog[]
   serviceRequests  ServiceRequest[] // QR Notifications
-  
-  @@index([tenantId])
+
   @@unique([number, tenantId])
+  @@index([tenantId])
 }
 
 model UsageLog {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   tableId         String
-  table           Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  table           Table     @relation(fields: [tableId], references: [id], onDelete: Cascade)
   tenantId        String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   startedAt       DateTime
   endedAt         DateTime?
   durationMinutes Int?
-  amountCharged   Float    @default(0.0) // Final Total
-  
-  discountApplied Float    @default(0.0) // Amount saved
+  amountCharged   Float     @default(0.0) // Final Total
+
+  discountApplied Float   @default(0.0) // Amount saved
   memberId        String?
-  member          Member?  @relation(fields: [memberId], references: [id])
-  
-  paymentStatus   String   @default("PENDING") // PENDING, PAID
-  paymentRecords  PaymentRecord[]
+  member          Member? @relation(fields: [memberId], references: [id])
 
-  items           OrderItem[]
-  createdAt       DateTime @default(now())
+  paymentStatus  String          @default("PENDING") // PENDING, PAID
+  paymentRecords PaymentRecord[]
 
-  dailyBalanceId  String?
-  dailyBalance    DailyBalance? @relation(fields: [dailyBalanceId], references: [id])
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+
+  dailyBalanceId String?
+  dailyBalance   DailyBalance? @relation(fields: [dailyBalanceId], references: [id])
 
   @@index([tenantId])
   @@index([tableId])
   @@index([dailyBalanceId])
   @@index([memberId])
+  // Optimizations
+  @@index([tenantId, startedAt]) // Reports filtering by date
+  @@index([tenantId, paymentStatus]) // Finance dashboard (Pending payments)
+  @@index([tenantId, endedAt]) // Active sessions lookup
 }
 
 model PaymentRecord {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   amount        Float
-  method        String   // CASH, CARD, TRANSFER
-  status        String   // COMPLETED, FAILED, PENDING
-  provider      String   // STRIPE, WEBPAY, CASHy
-  transactionId String?  // External ID
+  method        String // CASH, CARD, TRANSFER
+  status        String // COMPLETED, FAILED, PENDING
+  provider      String // STRIPE, WEBPAY, CASHy
+  transactionId String? // External ID
 
-  usageLogId    String
-  usageLog      UsageLog @relation(fields: [usageLogId], references: [id], onDelete: Restrict)
+  usageLogId String
+  usageLog   UsageLog? @relation(fields: [usageLogId], references: [id])
 
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // 🔐 Webhook Security
+  idempotencyKey String? @unique // Prevenir procesamiento duplicado
+  webhookData    Json? // Payload completo del webhook para auditoría
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([usageLogId])
+  @@index([tenantId, createdAt]) // Optimization for Bank Reconciliation
+  @@index([idempotencyKey]) // Webhook idempotency lookup
 }
 
-
 model DailyBalance {
-  id              String   @id @default(cuid())
-  date            DateTime @default(now())
-  totalRevenue    Float    @default(0.0)
-  timeRevenue     Float    @default(0.0)
-  productRevenue  Float    @default(0.0)
-  closedBy        String   // User ID or Name
-  
-  usageLogs       UsageLog[]
-  
-  tenantId        String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  date           DateTime @default(now())
+  totalRevenue   Float    @default(0.0)
+  timeRevenue    Float    @default(0.0)
+  productRevenue Float    @default(0.0)
+  closedBy       String // User ID or Name
+
+  usageLogs UsageLog[]
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
 }
@@ -173,14 +261,14 @@ model Product {
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  quantity  Int
-  unitPrice Float // Precio al momento de la venta (snapshot)
+  id         String @id @default(cuid())
+  quantity   Int
+  unitPrice  Float // Precio al momento de la venta (snapshot)
   totalPrice Float // quantity * unitPrice
-  
+
   productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict) // No borrar producto si tiene ventas
-  
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict) // No borrar producto si tiene ventas
+
   usageLogId String
   usageLog   UsageLog @relation(fields: [usageLogId], references: [id], onDelete: Cascade)
 
@@ -202,17 +290,17 @@ enum RequestStatus {
 }
 
 model ServiceRequest {
-  id        String   @id @default(cuid())
-  type      RequestType   @default(CALL)
-  status    RequestStatus @default(PENDING)
-  message   String?
-  
-  tableId   String
-  table     Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
+  id      String        @id @default(cuid())
+  type    RequestType   @default(CALL)
+  status  RequestStatus @default(PENDING)
+  message String?
+
+  tableId String
+  table   Table  @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -222,10 +310,10 @@ model ServiceRequest {
 
 model SystemLog {
   id        String   @id @default(cuid())
-  level     String   // INFO, WARN, ERROR, CRITICAL
+  level     String // INFO, WARN, ERROR, CRITICAL
   message   String
   details   Json?
-  tenantId  String?  
+  tenantId  String?
   tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 
@@ -233,3 +321,40 @@ model SystemLog {
   @@index([tenantId])
   @@index([createdAt])
 }
+
+model TierChange {
+  id           String         @id @default(cuid())
+  memberId     String
+  member       Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  fromCategory MemberCategory
+  toCategory   MemberCategory
+  reason       String
+  changedBy    String
+  tenantId     String
+  createdAt    DateTime       @default(now())
+
+  @@index([memberId])
+  @@index([tenantId])
+  @@index([createdAt])
+}
+
+// TEMP BYPASS: GeneratedReport model disabled pending Prisma 7.4 validator fix
+// Re-enable by uncommenting this block and the generatedReports relation in Tenant
+// model GeneratedReport {
+//   id          String   @id @default(cuid())
+//   tenantId    String
+//   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+//   reportType  String
+//   period      String
+//   metricsSnapshot Json
+//   generatedAt DateTime @default(now())
+//   sentTo      String?
+//   sentAt      DateTime?
+//   deliveryStatus String @default("PENDING")
+//   downloadToken String? @unique
+//   tokenExpiry   DateTime?
+//   @@index([tenantId])
+//   @@index([period])
+//   @@index([downloadToken])
+//   @@index([deliveryStatus])
+// }

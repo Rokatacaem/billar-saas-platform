@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import ProductSelector from './ProductSelector';
 import { addProductToTable } from '@/app/actions/pos-actions';
 import { toggleTableStatus } from '@/app/actions/table-actions';
-// We need a way to fetch session details (items). 
-// For now, we might need a server action to get `currentSession`.
-// Let's assume we pass a `fetchSession` prop or use a server action directly if we can.
-import { getTableSession } from '@/app/actions/pos-actions'; // We need to create this!
+import { logSplitTransactionAction } from '@/app/actions/audit-actions';
+import SplitBillModal, { SplitPart } from '@/components/comercial/SplitBillModal';
+import { validateSplitConsistency } from '@/lib/sentinel/split-validator';
 
 interface ActiveSessionPanelProps {
     table: any; // Type handling to be improved
@@ -29,6 +28,10 @@ export default function ActiveSessionPanel({ table, products, onClose, tenantBas
     const [members, setMembers] = useState<any[]>([]);
     const [selectedMember, setSelectedMember] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
+
+    // Split Bill State
+    const [showSplitModal, setShowSplitModal] = useState(false);
+    const [splitReceipts, setSplitReceipts] = useState<SplitPart[]>([]);
 
     // Initial Load
     useEffect(() => {
@@ -204,11 +207,33 @@ export default function ActiveSessionPanel({ table, products, onClose, tenantBas
                                 <span>${grandTotal.toFixed(2)}</span>
                             </div>
                         </div>
+
+                        {/* Split Bill - COMERCIAL Feature */}
+                        {splitReceipts.length > 0 && (
+                            <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                <p className="text-xs font-semibold text-green-800 mb-2">✅ Cuenta dividida en {splitReceipts.length} partes:</p>
+                                {splitReceipts.map((s) => (
+                                    <div key={s.partNumber} className="flex justify-between text-sm text-green-700">
+                                        <span>Persona #{s.partNumber}</span>
+                                        <span className="font-mono font-bold">${s.amount.toFixed(2)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
 
-            <div className="mt-4 pt-4 border-t">
+            <div className="mt-4 pt-4 border-t space-y-2">
+                {/* Split Bill Button */}
+                {activeTab === 'BILL' && (
+                    <button
+                        onClick={() => setShowSplitModal(true)}
+                        className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow transition-colors flex items-center justify-center gap-2"
+                    >
+                        ➗ Dividir Cuenta
+                    </button>
+                )}
                 <button
                     onClick={handleStopSession}
                     className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow transition-colors"
@@ -216,6 +241,54 @@ export default function ActiveSessionPanel({ table, products, onClose, tenantBas
                     Cerrar Mesa
                 </button>
             </div>
+
+            {/* Split Bill Modal */}
+            {showSplitModal && (
+                <SplitBillModal
+                    totalAmount={grandTotal}
+                    currency="$"
+                    onSplit={async (splits) => {
+                        // Sentinel: validate consistency
+                        const validation = validateSplitConsistency(grandTotal, splits);
+
+                        if (!validation.valid) {
+                            // Even if invalid (should be blocked by UI), log attempt
+                            // Now using Server Action to avoid bundling issues
+                            await logSplitTransactionAction(
+                                'akapoolco', // TODO: Get from context/props
+                                table.id,
+                                grandTotal,
+                                splits,
+                                validation
+                            );
+                            setNotification({
+                                message: `Error de consistencia: ${validation.violations.join(', ')}`,
+                                type: 'info'
+                            });
+                            return; // Stop processing
+                        }
+
+                        // Success path
+                        setSplitReceipts(splits);
+                        setShowSplitModal(false);
+
+                        // Log success audit via Server Action
+                        await logSplitTransactionAction(
+                            'akapoolco', // TODO: Get from context/props 
+                            table.id,
+                            grandTotal,
+                            splits,
+                            validation
+                        );
+
+                        setNotification({
+                            message: 'Cuenta dividida correctamente. Cada persona puede pagar su parte.',
+                            type: 'success'
+                        });
+                    }}
+                    onCancel={() => setShowSplitModal(false)}
+                />
+            )}
         </div>
     );
 }

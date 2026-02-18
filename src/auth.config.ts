@@ -7,6 +7,7 @@ export const authConfig = {
             if (session.user && token.tenantId) {
                 session.user.tenantId = token.tenantId as string;
                 session.user.tenantSlug = token.tenantSlug as string;
+                session.user.tenantStatus = token.tenantStatus as string;
                 session.user.role = token.role as string;
             }
             return session;
@@ -15,12 +16,11 @@ export const authConfig = {
             if (user) {
                 token.tenantId = user.tenantId;
                 token.tenantSlug = user.tenantSlug;
+                token.tenantStatus = user.tenantStatus;
                 token.role = user.role;
             }
             return token;
         },
     },
     session: { strategy: "jwt" },
-    trustHost: true,
-    secret: process.env.AUTH_SECRET,
 } satisfies NextAuthConfig;

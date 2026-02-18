@@ -107,7 +107,7 @@ export default function ReportsClient({ initialStats, initialChartData, tenantSl
                             <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                             <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
                             <Tooltip
-                                formatter={(val: number | undefined) => `$${val ?? 0}`}
+                                formatter={(val: number) => `$${val}`}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
                             <Legend />
@@ -125,7 +125,7 @@ export default function ReportsClient({ initialStats, initialChartData, tenantSl
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                             <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                            <Tooltip formatter={(val: number | undefined) => `$${val ?? 0}`} />
+                            <Tooltip formatter={(val: number) => `$${val}`} />
                             <Line type="monotone" dataKey="product" stroke="#fbbf24" strokeWidth={3} dot={false} />
                             <Line type="monotone" dataKey="time" stroke={primaryColor} strokeWidth={3} dot={false} />
                         </LineChart>

@@ -2,11 +2,53 @@
 
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import { detectBruteForce, logSecurityEvent, ThreatLevel } from "@/lib/security/intrusion-detector";
+import { validateEmail } from "@/lib/security/sanitizer";
 
 export async function authenticate(prevState: string | undefined, formData: FormData) {
+    const email = formData.get('email') as string;
+
+    // 🛡️ SECURITY: Validate email format
+    const validEmail = validateEmail(email);
+    if (!validEmail) {
+        return 'Email inválido.';
+    }
+
+    // 🛡️ SECURITY: Check for brute force attempts
+    const isBruteForce = await detectBruteForce(validEmail, 'unknown', 5);
+    if (isBruteForce) {
+        await logSecurityEvent({
+            type: 'LOGIN_BLOCKED_BRUTE_FORCE',
+            severity: ThreatLevel.HIGH,
+            message: `Login blocked due to brute force detection: ${validEmail}`,
+            details: { email: validEmail }
+        });
+        return 'Demasiados intentos fallidos. Intenta más tarde.';
+    }
+
     try {
-        await signIn('credentials', formData);
+        await signIn('credentials', {
+            email: formData.get('email'),
+            password: formData.get('password'),
+            redirect: true,
+            redirectTo: "/"
+        });
     } catch (error) {
+        // 🚨 IMPORTANT: Re-throw Next.js redirects so they work!
+        if ((error as Error).message.includes("NEXT_REDIRECT")) {
+            throw error;
+        }
+
+        console.error("❌ Login error caught:", error);
+
+        // 🛡️ SECURITY: Log failed login attempt
+        await logSecurityEvent({
+            type: 'LOGIN_FAILED',
+            severity: ThreatLevel.LOW,
+            message: `Login failed for ${validEmail}`,
+            details: { email: validEmail, error: String(error) }
+        });
+
         if (error instanceof AuthError) {
             switch (error.type) {
                 case 'CredentialsSignin':
@@ -15,6 +57,23 @@ export async function authenticate(prevState: string | undefined, formData: Form
                     return 'Algo salió mal.';
             }
         }
+
         throw error;
     }
+
+    // 🛡️ SECURITY: Log successful login
+    // Note: This code might be unreachable if redirect:true throws, but we keep it for non-redirect flows or if behavior changes.
+    // Ideally, success logging happens in the callback or after successful action if redirect methods change.
+    // For now, if signIn throws redirect, we miss this log here, but `auth.ts` callbacks can handle it.
+    // However, keeping this for completeness in case of future changes.
+
+    /* 
+    // Unreachable due to redirect throw, but good to have if we switch to redirect: false
+    await logSecurityEvent({
+        type: 'LOGIN_SUCCESS',
+        severity: ThreatLevel.LOW,
+        message: `Successful login for ${validEmail}`,
+        details: { email: validEmail }
+    });
+    */
 }

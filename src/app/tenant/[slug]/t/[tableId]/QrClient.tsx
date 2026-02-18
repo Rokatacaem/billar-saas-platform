@@ -50,6 +50,21 @@ export default function QrClient({ tenant, table }: QrClientProps) {
         }
     };
 
+    // Helper for currency formatting
+    const formatMoney = (amount: number) => {
+        try {
+            return new Intl.NumberFormat(tenant.locale || 'es-CL', {
+                style: 'currency',
+                currency: tenant.currencyCode || 'CLP',
+                currencyDisplay: 'symbol',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            }).format(amount);
+        } catch {
+            return `$ ${amount}`;
+        }
+    };
+
     const confirmPayment = async (method: string) => {
         setPaymentProcessing(true);
         try {
@@ -76,20 +91,25 @@ export default function QrClient({ tenant, table }: QrClientProps) {
                 doc.text(data.tenantName, 14, 22);
                 doc.setFontSize(11);
                 doc.text(`Mesa: ${data.tableNumber}`, 14, 30);
-                doc.text(`Fecha: ${new Date(data.date).toLocaleString()}`, 14, 36);
+                doc.text(`Fecha: ${new Date(data.date).toLocaleString(tenant.locale || 'es-CL')}`, 14, 36);
 
                 // Items Table
                 const tableBody = data.items.map((item: any) => [
                     item.description,
                     item.quantity.toString(),
-                    `$${item.total.toFixed(0)}`
+                    formatMoney(item.total)
                 ]);
 
                 // Add Time Charge
-                tableBody.push(['Tiempo de Juego', `${data.durationMinutes} min`, `$${data.timeCharge.toFixed(0)}`]);
+                tableBody.push(['Tiempo de Juego', `${data.durationMinutes} min`, formatMoney(data.timeCharge)]);
 
                 if (data.discount > 0) {
-                    tableBody.push(['Descuento Socio', '', `-$${data.discount.toFixed(0)}`]);
+                    tableBody.push(['Descuento Socio', '', `-${formatMoney(data.discount)}`]);
+                }
+
+                // Add Tax Info
+                if (data.taxDetails && data.taxDetails.amount > 0) {
+                    tableBody.push([`${data.taxDetails.name} (${(data.taxDetails.rate * 100).toFixed(0)}%) included`, '', formatMoney(data.taxDetails.amount)]);
                 }
 
                 // @ts-ignore
@@ -98,7 +118,7 @@ export default function QrClient({ tenant, table }: QrClientProps) {
                     body: tableBody,
                     startY: 45,
                     theme: 'grid',
-                    foot: [['', 'Total', `$${data.total.toFixed(0)}`]]
+                    foot: [['', 'Total', formatMoney(data.total)]]
                 });
 
                 doc.save(`recibo_${data.tableNumber}_${Date.now()}.pdf`);
@@ -116,12 +136,28 @@ export default function QrClient({ tenant, table }: QrClientProps) {
                         {receiptData.items.map((i: any, idx: number) => (
                             <div key={idx} className="flex justify-between">
                                 <span>{i.quantity}x {i.description}</span>
-                                <span>${i.total}</span>
+                                <span>{formatMoney(i.total)}</span>
                             </div>
                         ))}
-                        <div className="flex justify-between font-semibold text-indigo-900 pt-2 border-t">
+                        {/* Time Charge Display */}
+                        <div className="flex justify-between text-gray-500">
+                            <span>Tiempo ({receiptData.durationMinutes} min)</span>
+                            <span>{formatMoney(receiptData.timeCharge)}</span>
+                        </div>
+
+                        {receiptData.discount > 0 && (
+                            <div className="flex justify-between text-green-600">
+                                <span>Descuento Socio</span>
+                                <span>-{formatMoney(receiptData.discount)}</span>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between font-semibold text-indigo-900 pt-2 border-t mt-2">
                             <span>Total a Pagar</span>
-                            <span className="text-xl">${receiptData.total}</span>
+                            <span className="text-xl">{formatMoney(receiptData.total)}</span>
+                        </div>
+                        <div className="text-xs text-right text-gray-400 mt-1">
+                            {receiptData.taxDetails?.name} incluido: {formatMoney(receiptData.taxDetails?.amount || 0)}
                         </div>
                     </div>
 

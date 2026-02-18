@@ -10,6 +10,13 @@ export async function getDashboardStats(range: 'today' | '7days' | 'month' = 'to
     if (!session?.user?.tenantId || session.user.role !== 'ADMIN') throw new Error("Unauthorized");
     const tenantId = session.user.tenantId;
 
+    // 0. Get Tenant Timezone (Placeholder for future strict timezone math)
+    const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { timezone: true }
+    });
+    // const timezone = tenant?.timezone || 'America/Santiago';
+
     let startDate = startOfDay(new Date());
     let endDate = endOfDay(new Date());
 
@@ -19,6 +26,9 @@ export async function getDashboardStats(range: 'today' | '7days' | 'month' = 'to
         startDate = startOfMonth(new Date());
         endDate = endOfMonth(new Date());
     }
+
+    // TODO: Implement strict timezone start/end using `date-fns-tz` when available.
+    // Currently using Server Time (UTC).
 
     // 1. Fetch UsageLogs within range
     const logs = await prisma.usageLog.findMany({

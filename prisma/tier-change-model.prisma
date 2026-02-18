@@ -1,0 +1,19 @@
+// Audit Trail for Member Tier Changes
+model TierChange {
+  id           String   @id @default(cuid())
+  memberId     String
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  fromCategory MemberCategory
+  toCategory   MemberCategory
+  reason       String           // "Manual upgrade", "Auto threshold", etc
+  changedBy    String           // User ID
+  
+  tenantId     String
+  
+  createdAt    DateTime @default(now())
+  
+  @@index([memberId])
+  @@index([tenantId])
+  @@index([createdAt])
+}

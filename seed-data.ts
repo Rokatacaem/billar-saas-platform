@@ -91,6 +91,55 @@ async function main() {
     }
 
     console.log("✅ Seed completed successfully!");
+
+    // --- AKAPOOLCO SEED ---
+    const akapoolco = await prisma.tenant.upsert({
+        where: { slug: 'akapoolco' },
+        update: {},
+        create: {
+            name: 'Akapoolco Billar',
+            slug: 'akapoolco',
+            type: 'BUSINESS', // Correct enum value from schema
+            businessModel: 'COMERCIAL',
+            primaryColor: '#000000',
+            secondaryColor: '#39FF14', // Neon Green
+            settings: { welcomeMessage: "Bienvenido a Akapoolco" }
+        }
+    });
+    console.log(`🏢 Tenant: ${akapoolco.name} (${akapoolco.id})`);
+
+    // Create Tables for Akapoolco
+    for (let i = 1; i <= 6; i++) {
+        await prisma.table.upsert({
+            where: { number_tenantId: { number: i, tenantId: akapoolco.id } },
+            update: {},
+            create: {
+                number: i,
+                status: 'AVAILABLE',
+                tenantId: akapoolco.id
+            }
+        });
+    }
+
+    // Create Products for Akapoolco
+    const akaProducts = [
+        { name: "Mojito", price: 5000, stock: 100 },
+        { name: "Pisco Sour", price: 4500, stock: 100 },
+        { name: "Tabla Quesos", price: 12000, stock: 20 },
+        { name: "Hora Pool", price: 8000, stock: 999 }
+    ];
+
+    for (const p of akaProducts) {
+        const existing = await prisma.product.findFirst({
+            where: { name: p.name, tenantId: akapoolco.id }
+        });
+        if (!existing) {
+            await prisma.product.create({
+                data: { ...p, tenantId: akapoolco.id }
+            });
+        }
+    }
+    console.log("✅ Akapoolco Seed completed!");
 }
 
 main()

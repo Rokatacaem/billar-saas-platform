@@ -35,6 +35,7 @@ export default async function AdminPage() {
                         <tr>
                             <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">Nombre</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Slug (Subdominio)</th>
+                            <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Región</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Tipo</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Estadísticas</th>
                             <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Fecha Alta</th>
@@ -61,6 +62,12 @@ export default async function AdminPage() {
                                     <a href={`http://${tenant.slug}.localhost:3000`} target="_blank" className="text-indigo-600 hover:text-indigo-900 hover:underline">
                                         {tenant.slug}.localhost:3000
                                     </a>
+                                </td>
+                                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-gray-900 dark:text-white">{tenant.currencyCode}</span>
+                                        <span className="text-xs text-gray-500">{tenant.timezone}</span>
+                                    </div>
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
                                     <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${tenant.type === 'CLUB' ? 'bg-green-50 text-green-700 ring-green-600/20' : 'bg-yellow-50 text-yellow-800 ring-yellow-600/20'}`}>

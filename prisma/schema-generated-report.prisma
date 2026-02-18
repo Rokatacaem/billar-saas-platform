@@ -1,0 +1,25 @@
+
+model GeneratedReport {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  reportType  String   // "WEEKLY_EXECUTIVE", "MONTHLY_SUMMARY"
+  period      String   // "2026-W07" (ISO week), "2026-02" (month)
+  
+  // Snapshot of key metrics at generation time
+  metricsSnapshot Json  // Stores all dashboard metrics
+  
+  generatedAt DateTime @default(now())
+  sentTo      String?  // Email where it was sent
+  sentAt      DateTime?
+  
+  // Security: Secure download links
+  downloadToken String? @unique // For secure downloads
+  tokenExpiry   DateTime?       // 24h expiration
+  
+  @@index([tenantId])
+  @@index([period])
+  @@index([downloadToken])
+  @@index([createdAt])
+}

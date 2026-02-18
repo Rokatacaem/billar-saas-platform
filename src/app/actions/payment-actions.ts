@@ -129,7 +129,12 @@ export async function getReceiptData(usageLogId: string) {
         discount: usageLog.discountApplied,
         total: usageLog.amountCharged,
         memberName: usageLog.member?.name,
-        paymentStatus: usageLog.paymentStatus
+        paymentStatus: usageLog.paymentStatus,
+        taxDetails: {
+            rate: usageLog.tenant.taxRate || 0,
+            name: usageLog.tenant.taxName || 'Tax',
+            amount: usageLog.amountCharged - (usageLog.amountCharged / (1 + (usageLog.tenant.taxRate || 0)))
+        }
     };
 }
 
