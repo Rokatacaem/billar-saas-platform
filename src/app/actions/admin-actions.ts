@@ -54,7 +54,7 @@ export async function createTenantWithAssets(formData: FormData) {
     }
 
     // Hash password (SECURITY FIX: no more plaintext!)
-    const hashedPassword = hashPassword(rawAdminPassword);
+    const hashedPassword = await hashPassword(rawAdminPassword);
 
     const preset = COUNTRY_PRESETS[country];
 
@@ -74,7 +74,12 @@ export async function createTenantWithAssets(formData: FormData) {
                     baseRate: 100.0, // Default Protocol Rate
 
                     // Localization
-                    ...preset,
+                    currencyCode: preset.currencyCode,
+                    currencySymbol: preset.currencySymbol,
+                    locale: preset.locale,
+                    timezone: preset.timezone,
+                    taxRate: preset.taxRate,
+                    taxName: preset.taxName,
 
                     settings: {
                         welcomeMessage: `Bienvenidos a ${name}`,
