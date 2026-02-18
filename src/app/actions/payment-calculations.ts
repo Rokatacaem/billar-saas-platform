@@ -1,3 +1,10 @@
+'use server';
+
+import { prisma } from "@/lib/prisma";
+import { calculateTotal } from "@/lib/pricing/PricingEngine";
+import { logSecurityEvent, ThreatLevel } from "@/lib/security/intrusion-detector";
+import { validateDiscountIntegrity } from "@/lib/pricing/PricingEngine";
+
 /**
  * 🧮 PROCESS PAYMENT: Calculate total with PricingEngine
  * Integrates business-aware logic and Sentinel validation
