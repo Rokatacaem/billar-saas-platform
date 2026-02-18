@@ -155,7 +155,7 @@ export async function checkNewPayments(tenantId: string, since: number) {
         return payments.map(p => ({
             id: p.id,
             amount: p.amount,
-            table: p.usageLog.table.number,
+            table: p.usageLog?.table?.number ?? 0,
             timestamp: p.createdAt.getTime()
         }));
     } catch {
