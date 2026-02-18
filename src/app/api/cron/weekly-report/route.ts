@@ -1,8 +1,8 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateReportForTenant } from '@/app/actions/report-generation';
 import { sendEmail, getWeeklyReportEmailTemplate } from '@/lib/email/resend';
-import { logSecurityEvent, ThreatLevel } from '@/lib/security/logging';
+import { logSecurityEvent, ThreatLevel } from '@/lib/security/intrusion-detector';
 import { getCurrentWeek } from '@/lib/reports/pdf-engine';
 
 /**
@@ -15,13 +15,14 @@ export async function GET(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         await logSecurityEvent({
-            level: ThreatLevel.HIGH,
+            type: 'CRON_UNAUTHORIZED',
+            severity: ThreatLevel.HIGH,
             message: 'Unauthorized cron access attempt',
             details: {
                 ip: req.headers.get('x-forwarded-for') || 'unknown',
                 userAgent: req.headers.get('user-agent')
             },
-            tenantId: null
+            tenantId: undefined
         });
 
         return new Response('Unauthorized', { status: 401 });
@@ -99,7 +100,8 @@ export async function GET(req: NextRequest) {
 
                 // 🛡️ SENTINEL: Log delivery status
                 await logSecurityEvent({
-                    level: emailResult.success ? ThreatLevel.INFO : ThreatLevel.MEDIUM,
+                    type: 'CRON_REPORT_DELIVERY',
+                    severity: emailResult.success ? ThreatLevel.LOW : ThreatLevel.MEDIUM,
                     message: emailResult.success
                         ? `Weekly report sent successfully to ${ownerEmail}`
                         : `Failed to send weekly report to ${ownerEmail}`,
@@ -124,7 +126,8 @@ export async function GET(req: NextRequest) {
                 console.error(`[Cron] Failed for tenant ${tenant.id}:`, error);
 
                 await logSecurityEvent({
-                    level: ThreatLevel.MEDIUM,
+                    type: 'CRON_TENANT_FAILED',
+                    severity: ThreatLevel.MEDIUM,
                     message: `Weekly report cron failed for tenant`,
                     details: {
                         tenantId: tenant.id,
@@ -143,7 +146,7 @@ export async function GET(req: NextRequest) {
 
         const successCount = results.filter(r => r.success).length;
 
-        return Response.json({
+        return NextResponse.json({
             success: true,
             processed: tenants.length,
             successful: successCount,
@@ -154,15 +157,16 @@ export async function GET(req: NextRequest) {
         console.error('[Cron] Error:', error);
 
         await logSecurityEvent({
-            level: ThreatLevel.HIGH,
+            type: 'CRON_JOB_FAILED',
+            severity: ThreatLevel.HIGH,
             message: 'Weekly report cron job failed',
             details: {
                 error: error instanceof Error ? error.message : 'Unknown error'
             },
-            tenantId: null
+            tenantId: undefined
         });
 
-        return Response.json(
+        return NextResponse.json(
             { success: false, error: 'Cron job failed' },
             { status: 500 }
         );

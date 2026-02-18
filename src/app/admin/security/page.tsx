@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { prisma } from '@/lib/security';
+import { prisma } from '@/lib/prisma';
 import { ThreatLevel } from '@/lib/security/intrusion-detector';
 
 interface SecurityLog {

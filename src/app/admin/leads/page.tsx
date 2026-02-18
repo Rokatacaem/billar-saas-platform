@@ -19,49 +19,15 @@ export default async function LeadsPage() {
     });
 
     return (
-        <div className="leads-page">
-            <div className="container">
-                <header className="page-header">
-                    <h1>Lead Management</h1>
-                    <p>Gestión de prospectos internacionales</p>
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <header className="mb-8 bg-white dark:bg-gray-800 p-8 rounded-lg shadow-sm">
+                    <h1 className="text-3xl font-bold text-green-900 dark:text-green-400 mb-2">Lead Management</h1>
+                    <p className="text-gray-600 dark:text-gray-300 text-lg">Gestión de prospectos internacionales</p>
                 </header>
 
                 <LeadsClient leads={leads} />
             </div>
-
-            <style jsx>{`
-                .leads-page {
-                    min-height: 100vh;
-                    background: #f5f5f5;
-                    padding: 2rem 0;
-                }
-
-                .container {
-                    max-width: 1400px;
-                    margin: 0 auto;
-                    padding: 0 2rem;
-                }
-
-                .page-header {
-                    margin-bottom: 2rem;
-                    background: white;
-                    padding: 2rem;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-                }
-
-                .page-header h1 {
-                    margin: 0 0 0.5rem 0;
-                    color: #1a4d2e;
-                    font-size: 2rem;
-                }
-
-                .page-header p {
-                    margin: 0;
-                    color: #666;
-                    font-size: 1.1rem;
-                }
-            `}</style>
         </div>
     );
 }

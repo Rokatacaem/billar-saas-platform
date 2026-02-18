@@ -171,7 +171,7 @@ function addClubContent(doc: PDFKit.PDFDocument, metrics: any, tenant: ReportTen
     doc.moveDown(0.5);
 
     const attendanceData = metrics.attendanceData || {};
-    const topMembers = (attend anceData.data || []).slice(0, 5);
+    const topMembers = (attendanceData.data || []).slice(0, 5);
 
     doc.fontSize(10)
         .fillColor('#000000')

@@ -1,11 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import ClubDashboardClient from "./ClubDashboardClient";
 
 export default async function ClubDashboardPage({ params }: { params: { slug: string } }) {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user) redirect('/auth/signin');
 
     const tenant = await prisma.tenant.findUnique({
