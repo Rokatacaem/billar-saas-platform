@@ -35,14 +35,13 @@ export async function authenticate(prevState: string | undefined, formData: Form
         });
     } catch (error) {
         // 🚨 IMPORTANT: Re-throw Next.js redirects so they work!
-        if ((error as Error).message.includes("NEXT_REDIRECT")) {
+        // Usamos importación dinámica y cast temporal para evitar líos de tipos en versiones bleeding-edge
+        const nav = await import("next/navigation") as any;
+        if (nav.isRedirectError?.(error) || (error as any)?.message?.includes('NEXT_REDIRECT')) {
             throw error;
         }
 
         console.error("❌ Login error caught:", error);
-
-        // 🛡️ SECURITY: Log failed login attempt
-        // await logSecurityEvent({ ... }); // Commented out to avoid circular dependency crash during debug if DB is down
 
         if (error instanceof AuthError) {
             switch (error.type) {

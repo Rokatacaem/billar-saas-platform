@@ -33,13 +33,30 @@ export const prisma = prismaBase.$extends({
             async $allOperations({ model, operation, args, query }) {
                 // BYPASS for specific internal calls if needed, but separating clients is safer.
 
-                // Obtención de sesión para aislamiento y RBAC
-                // Dynamic import is safe here because auth() uses prismaBase
-                const { auth } = await import("@/auth");
-                const session = await auth();
-                const user = session?.user;
-                const tenantId = user?.tenantId;
-                const role = user?.role;
+                // 🛡️ TENANT ISOLATION & RBAC
+                // Obtenemos la sesión para aislamiento. 
+                // IMPORTANTE: Evitamos importar @/auth directamente aquí para prevenir dependencias circulares.
+                // En su lugar, intentamos obtenerla de forma segura o fallar gracilmente si no es posible.
+
+                let user: any = null;
+                let tenantId: string | undefined;
+                let role: string | undefined;
+
+                try {
+                    // Solo intentamos importar auth si no estamos en un proceso de inicialización crítica
+                    // y si el modelo no es Tenant o User (que son usados por Auth.js)
+                    if (model !== 'Tenant' && model !== 'User') {
+                        const { auth } = await import("@/auth");
+                        const session = await auth();
+                        user = session?.user;
+                        tenantId = user?.tenantId;
+                        role = user?.role;
+                    }
+                } catch (authError) {
+                    // Si falla la obtención de sesión, simplemente continuamos sin tenantId.
+                    // Esto es común durante los flujos de login.
+                    // console.log("Auth not available yet, bypassing extension logic");
+                }
 
                 // 🛡️ RBAC: Protección de Modelos Sensibles
                 // Solo ADMIN puede modificar Tenant o User
