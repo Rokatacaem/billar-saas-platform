@@ -18,8 +18,8 @@ class RateLimiter {
         this.windowMs = windowMs;
         this.maxRequests = maxRequests;
 
-        // Cleanup cada 5 minutos
-        setInterval(() => this.cleanup(), 5 * 60 * 1000);
+        // ⚠️ setInterval no es compatible con Edge Runtime.
+        // Se reemplaza por limpieza "lazy" en el método check().
     }
 
     /**
@@ -28,6 +28,11 @@ class RateLimiter {
      * @returns true si está dentro del límite
      */
     check(key: string): boolean {
+        // 🧹 Limpieza Lazy: 1% de probabilidad de ejecutar cleanup en cada check
+        if (Math.random() < 0.01) {
+            this.cleanup();
+        }
+
         const now = Date.now();
         const entry = this.store.get(key);
 
