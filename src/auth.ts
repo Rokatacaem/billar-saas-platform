@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import { prismaBase } from "@/lib/prisma"; // Use Base client to avoid circular loop
+// import { prismaBase } from "@/lib/prisma"; // Use Base client to avoid circular loop // This line is removed as per the change
 import { authConfig } from "./auth.config";
 import {
     verifyPassword,
@@ -9,6 +10,28 @@ import {
     isLegacyHash,
     hashPassword
 } from "@/lib/security/encryption";
+
+// Define prismaClientSingleton and prismaBase here as per the change
+import { PrismaClient } from "@prisma/client";
+
+const prismaClientSingleton = () => {
+    return new PrismaClient();
+};
+
+declare global {
+    var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>;
+}
+
+const prismaBase = globalThis.prismaGlobal ?? prismaClientSingleton();
+
+if (process.env.NODE_ENV !== "production") globalThis.prismaGlobal = prismaBase;
+
+// 🔍 DIAGNÓSTICO: Verificar secretos en Vercel
+if (!process.env.AUTH_SECRET) {
+    console.error("🔥 [AUTH] CRITICAL: AUTH_SECRET is missing in environment variables!");
+} else {
+    console.log("🛡️ [AUTH] AUTH_SECRET is present");
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     trustHost: true,

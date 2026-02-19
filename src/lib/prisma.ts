@@ -33,11 +33,8 @@ export const prisma = prismaBase.$extends({
             async $allOperations({ model, operation, args, query }) {
                 // BYPASS for specific internal calls if needed, but separating clients is safer.
 
-                // 🛡️ TENANT ISOLATION & RBAC
-                // Obtenemos la sesión para aislamiento. 
-                // IMPORTANTE: Evitamos importar @/auth directamente aquí para prevenir dependencias circulares.
-                // En su lugar, intentamos obtenerla de forma segura o fallar gracilmente si no es posible.
-
+                // 🛡️ TENANT ISOLATION & RBAC (TEMPORALMENTE DESACTIVADO PARA DEBUG LOGIN)
+                /* 
                 let user: any = null;
                 let tenantId: string | undefined;
                 let role: string | undefined;
@@ -57,6 +54,11 @@ export const prisma = prismaBase.$extends({
                     // Esto es común durante los flujos de login.
                     // console.log("Auth not available yet, bypassing extension logic");
                 }
+                */
+
+                const user = null as any;
+                const tenantId = undefined;
+                const role = undefined;
 
                 // 🛡️ RBAC: Protección de Modelos Sensibles
                 // Solo ADMIN puede modificar Tenant o User

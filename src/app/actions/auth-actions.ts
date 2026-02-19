@@ -28,45 +28,45 @@ export async function authenticate(prevState: string | undefined, formData: Form
 
     try {
         await signIn('credentials', {
-            email: formData.get('email'),
-            password: formData.get('password'),
-            redirect: true,
-            redirectTo: "/"
-        });
-    } catch (error) {
-        // 🚨 IMPORTANT: Re-throw Next.js redirects so they work!
-        // En Next.js 16.1.6, detectamos el error de redirección por su mensaje/digest
-        if ((error as any)?.message?.includes('NEXT_REDIRECT') || (error as any)?.digest?.includes('NEXT_REDIRECT')) {
-            throw error;
-        }
+            console.log("🚀 [AUTH-ACTION] Calling signIn with redirect: false");
+            const result = await signIn('credentials', {
+                email: formData.get('email'),
+                password: formData.get('password'),
+                redirect: false,
+            });
 
-        console.error("❌ Login error caught in Server Action:", error);
-
-        if (error instanceof AuthError) {
-            switch (error.type) {
-                case 'CredentialsSignin':
-                    return 'Credenciales inválidas.';
-                default:
-                    return `Error de autenticación: ${error.message || error.type}`;
+            console.log("✅ [AUTH-ACTION] signIn finished, result:", result);
+        } catch (error) {
+            console.error("❌ [AUTH-ACTION] Unexpected error in Server Action:", error);
+            if (error instanceof AuthError) {
+                switch (error.type) {
+                    case 'CredentialsSignin':
+                        return 'Credenciales inválidas.';
+                    default:
+                        return `Error de autenticación: ${error.message || error.type}`;
+                }
             }
+            return `Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`;
         }
 
-        return `Error del sistema: ${error instanceof Error ? error.message : 'Error desconocido'}`;
+        // Si llegamos aquí, la sesión debería estar creada. Redirigimos manualmente.
+        console.log("🏁 [AUTH-ACTION] Redirecting manually to /");
+        const { redirect } = await import("next/navigation");
+        redirect("/");
+
+        // 🛡️ SECURITY: Log successful login
+        // Note: This code might be unreachable if redirect:true throws, but we keep it for non-redirect flows or if behavior changes.
+        // Ideally, success logging happens in the callback or after successful action if redirect methods change.
+        // For now, if signIn throws redirect, we miss this log here, but `auth.ts` callbacks can handle it.
+        // However, keeping this for completeness in case of future changes.
+
+        /* 
+        // Unreachable due to redirect throw, but good to have if we switch to redirect: false
+        await logSecurityEvent({
+            type: 'LOGIN_SUCCESS',
+            severity: ThreatLevel.LOW,
+            message: `Successful login for ${validEmail}`,
+            details: { email: validEmail }
+        });
+        */
     }
-
-    // 🛡️ SECURITY: Log successful login
-    // Note: This code might be unreachable if redirect:true throws, but we keep it for non-redirect flows or if behavior changes.
-    // Ideally, success logging happens in the callback or after successful action if redirect methods change.
-    // For now, if signIn throws redirect, we miss this log here, but `auth.ts` callbacks can handle it.
-    // However, keeping this for completeness in case of future changes.
-
-    /* 
-    // Unreachable due to redirect throw, but good to have if we switch to redirect: false
-    await logSecurityEvent({
-        type: 'LOGIN_SUCCESS',
-        severity: ThreatLevel.LOW,
-        message: `Successful login for ${validEmail}`,
-        details: { email: validEmail }
-    });
-    */
-}
