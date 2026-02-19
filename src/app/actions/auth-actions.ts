@@ -2,7 +2,6 @@
 
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
-import { isRedirectError } from "next/navigation";
 import { detectBruteForce, logSecurityEvent, ThreatLevel } from "@/lib/security/intrusion-detector";
 import { validateEmail } from "@/lib/security/sanitizer";
 
@@ -35,7 +34,9 @@ export async function authenticate(prevState: string | undefined, formData: Form
             redirectTo: "/"
         });
     } catch (error) {
-        if (isRedirectError(error)) {
+        // 🚨 IMPORTANT: Re-throw Next.js redirects so they work!
+        // En Next.js 16.1.6, detectamos el error de redirección por su mensaje/digest
+        if ((error as any)?.message?.includes('NEXT_REDIRECT') || (error as any)?.digest?.includes('NEXT_REDIRECT')) {
             throw error;
         }
 
