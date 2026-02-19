@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { generateTenantTheme } from "@/lib/theme-generator";
 
 interface TenantLayoutProps {
     children: React.ReactNode;
@@ -30,15 +31,28 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
             name: true,
             businessModel: true,
             primaryColor: true,
+            secondaryColor: true, // Agregado para el tema
+            settings: true,
             logoUrl: true
         }
     });
 
     if (!tenant) notFound();
 
+    const themeSettings = {
+        primaryColor: tenant.primaryColor,
+        secondaryColor: tenant.secondaryColor,
+        backgroundColor: (tenant.settings as any)?.backgroundColor || '#ffffff',
+        businessModel: tenant.businessModel as any
+    };
+
+    const theme = generateTenantTheme(themeSettings);
+
     return (
         <ThemeProvider businessModel={tenant.businessModel}>
-            {children}
+            <div style={theme as React.CSSProperties} className="min-h-screen bg-background text-foreground transition-colors duration-300">
+                {children}
+            </div>
         </ThemeProvider>
     );
 }

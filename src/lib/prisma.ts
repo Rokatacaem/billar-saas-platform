@@ -3,25 +3,16 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from "@prisma/client";
 
 const prismaClientSingleton = () => {
-    // 🛡️ SAFEQUARD: Check for DATABASE_URL prevents hard crash on build/runtime if missing
     const connectionString = process.env.DATABASE_URL;
 
     if (!connectionString) {
-        console.error("❌ CRITICAL: DATABASE_URL is missing. Prisma cannot connect.");
-        // In production, this causes a crash. In dev, we might want to survive to show UI error.
-        // We'll throw specific error that can be caught if wrapped, but here it's global.
-        // Returning undefined or a mock might be safer to allow 'build' to pass even if env is missing.
-        if (process.env.NODE_ENV === 'production') {
-            // Log but don't crash thread immediately? 
-            // Actually, next-auth needs it. 
-        }
+        throw new Error('DATABASE_URL is not defined in environment variables');
     }
 
     // Pool de conexiones optimizado para Neon
-    // Ensure we don't pass undefined to Pool
     const pool = new Pool({
-        connectionString: connectionString || "postgresql://user:pass@localhost:5432/db", // Fallback to avoid crash, will fail on query
-        ssl: connectionString ? { rejectUnauthorized: false } : undefined
+        connectionString,
+        ssl: { rejectUnauthorized: false }
     });
     const adapter = new PrismaPg(pool);
 
