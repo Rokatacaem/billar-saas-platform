@@ -42,23 +42,19 @@ export async function authenticate(prevState: string | undefined, formData: Form
         console.error("❌ Login error caught:", error);
 
         // 🛡️ SECURITY: Log failed login attempt
-        await logSecurityEvent({
-            type: 'LOGIN_FAILED',
-            severity: ThreatLevel.LOW,
-            message: `Login failed for ${validEmail}`,
-            details: { email: validEmail, error: String(error) }
-        });
+        // await logSecurityEvent({ ... }); // Commented out to avoid circular dependency crash during debug if DB is down
 
         if (error instanceof AuthError) {
             switch (error.type) {
                 case 'CredentialsSignin':
                     return 'Credenciales inválidas.';
                 default:
-                    return 'Algo salió mal.';
+                    return 'Error de autenticación: ' + error.message;
             }
         }
 
-        throw error;
+        // Return the actual error to the client for debugging (remove in production once fixed)
+        return `Error del sistema: ${(error as Error).message}`;
     }
 
     // 🛡️ SECURITY: Log successful login
