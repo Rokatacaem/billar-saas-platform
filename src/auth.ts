@@ -23,51 +23,48 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
             authorize: async (credentials) => {
                 try {
-                    console.log("🔒 Authorize called");
+                    console.log("🔒 [AUTH] Authorize start for:", credentials?.email);
                     if (!credentials?.email || !credentials?.password) {
-                        console.log("❌ Missing credentials");
+                        console.log("❌ [AUTH] Missing credentials");
                         return null;
                     }
 
+                    console.log("📡 [AUTH] Fetching user from DB...");
                     const user = await prismaBase.user.findUnique({
                         where: { email: credentials.email as string },
                         include: { tenant: true }
                     });
 
                     if (!user || !user.password) {
-                        console.log("❌ User not found or no password set");
+                        console.log("❌ [AUTH] User not found or no password set:", credentials.email);
                         return null;
                     }
 
+                    console.log("🔑 [AUTH] Verifying password...");
                     let isValidPassword = false;
 
                     // 🔐 LAZY MIGRATION LOGIC
                     if (isLegacyHash(user.password)) {
-                        console.log("🔄 Legacy SHA-256 hash detected, verifying...");
+                        console.log("🔄 [AUTH] Legacy SHA-256 hash detected");
                         isValidPassword = verifyPasswordLegacy(
                             credentials.password as string,
                             user.password
                         );
 
-                        // ✅ Si el password es correcto, migrar a bcrypt
                         if (isValidPassword) {
-                            console.log("✅ Password valid. Migrating to bcrypt...");
+                            console.log("✅ [AUTH] Password valid. Migrating...");
                             try {
                                 const newHash = await hashPassword(credentials.password as string);
-
                                 await prismaBase.user.update({
                                     where: { id: user.id },
                                     data: { password: newHash }
                                 });
-
-                                console.log("🎉 Password successfully migrated to bcrypt!");
+                                console.log("🎉 [AUTH] Password migrated!");
                             } catch (migrationError) {
-                                console.error("⚠️ Password migration failed:", migrationError);
-                                // Continue login even if migration fails
+                                console.error("⚠️ [AUTH] Migration failed:", migrationError);
                             }
                         }
                     } else {
-                        // Password ya está en bcrypt
                         isValidPassword = await verifyPassword(
                             credentials.password as string,
                             user.password
@@ -75,11 +72,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     }
 
                     if (!isValidPassword) {
-                        console.log("❌ Invalid password");
+                        console.log("❌ [AUTH] Invalid password for:", user.email);
                         return null;
                     }
 
-                    console.log("✅ User authenticated:", user.email);
+                    console.log("✅ [AUTH] Success:", user.email, "Tenant:", user.tenant.slug);
 
                     return {
                         id: user.id,
@@ -91,7 +88,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                         role: user.role
                     };
                 } catch (error) {
-                    console.error("🔥 CRITICAL ERROR in authorize:", error);
+                    console.error("🔥 [AUTH] CRITICAL ERROR in authorize:", error);
+                    // Importante: No re-lanzar aquí para que NextAuth maneje el error como fallo de auth
                     return null;
                 }
             }

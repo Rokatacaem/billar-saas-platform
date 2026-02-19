@@ -2,6 +2,7 @@
 
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import { isRedirectError } from "next/navigation";
 import { detectBruteForce, logSecurityEvent, ThreatLevel } from "@/lib/security/intrusion-detector";
 import { validateEmail } from "@/lib/security/sanitizer";
 
@@ -34,26 +35,22 @@ export async function authenticate(prevState: string | undefined, formData: Form
             redirectTo: "/"
         });
     } catch (error) {
-        // 🚨 IMPORTANT: Re-throw Next.js redirects so they work!
-        // Usamos importación dinámica y cast temporal para evitar líos de tipos en versiones bleeding-edge
-        const nav = await import("next/navigation") as any;
-        if (nav.isRedirectError?.(error) || (error as any)?.message?.includes('NEXT_REDIRECT')) {
+        if (isRedirectError(error)) {
             throw error;
         }
 
-        console.error("❌ Login error caught:", error);
+        console.error("❌ Login error caught in Server Action:", error);
 
         if (error instanceof AuthError) {
             switch (error.type) {
                 case 'CredentialsSignin':
                     return 'Credenciales inválidas.';
                 default:
-                    return 'Error de autenticación: ' + error.message;
+                    return `Error de autenticación: ${error.message || error.type}`;
             }
         }
 
-        // Return the actual error to the client for debugging (remove in production once fixed)
-        return `Error del sistema: ${(error as Error).message}`;
+        return `Error del sistema: ${error instanceof Error ? error.message : 'Error desconocido'}`;
     }
 
     // 🛡️ SECURITY: Log successful login
