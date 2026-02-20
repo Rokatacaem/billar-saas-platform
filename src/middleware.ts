@@ -21,7 +21,7 @@ export default auth(async (req) => {
         if (parts.length > 2) subdominio = parts[0];
     }
 
-    const isTenantRoute = subdominio !== hostname && subdominio !== "www";
+    const isTenantRoute = subdominio.length > 0 && subdominio !== hostname && subdominio !== "www";
     const session = req.auth;
 
     // 🛡️ SECURITY: Global rate limiting
@@ -159,7 +159,7 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
     // Content Security Policy
     const csp = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // unsafe-eval para Next.js dev
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https: blob:",
         "font-src 'self'",
@@ -169,10 +169,12 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
 
     headers.set('Content-Security-Policy', csp);
 
-    return NextResponse.next({
-        request: { headers: new Headers(response.headers) },
-        headers
+    // Apply headers to the existing response
+    headers.forEach((value, key) => {
+        response.headers.set(key, value);
     });
+
+    return response;
 }
 
 export const config = {

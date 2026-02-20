@@ -40,7 +40,6 @@ const STEPS = [
 export default function TenantStepper() {
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isUploading, setIsUploading] = useState(false);
     // Form State
     const [formData, setFormData] = useState({
         name: '',
