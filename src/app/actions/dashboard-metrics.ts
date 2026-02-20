@@ -50,12 +50,12 @@ export async function getMembersWithExpiringMemberships(tenantId: string, daysAh
             where: {
                 tenantId,
                 category: 'SOCIO',
-                membershipDueDate: {
+                currentPeriodEnd: {
                     gte: now,
                     lte: futureDate
                 }
             },
-            orderBy: { membershipDueDate: 'asc' }
+            orderBy: { currentPeriodEnd: 'asc' }
         });
 
         return {
