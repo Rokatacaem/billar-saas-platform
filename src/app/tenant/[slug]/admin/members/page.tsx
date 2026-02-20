@@ -20,6 +20,12 @@ export default async function MemberPage({ params }: MemberPageProps) {
 
     const members = await getMembers();
 
+    // Obtener los planes para la lista desplegable de Nueva Suscripción
+    const plans = await prisma.membershipPlan.findMany({
+        where: { tenantId: tenant.id },
+        orderBy: { price: 'asc' }
+    });
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <header className="mb-8 flex justify-between items-center">
@@ -29,7 +35,7 @@ export default async function MemberPage({ params }: MemberPageProps) {
                 </div>
             </header>
 
-            <MemberClient initialMembers={members} />
+            <MemberClient initialMembers={members as any} plans={plans as any} />
         </div>
     );
 }

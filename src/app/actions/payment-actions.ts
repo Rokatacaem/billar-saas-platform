@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { paymentProvider } from '@/lib/payments/mock-payment-provider';
+import { auth } from '@/auth';
 
 export async function initiatePayment(usageLogId: string, tenantId: string) {
     try {
@@ -131,9 +133,10 @@ export async function getReceiptData(usageLogId: string) {
         memberName: usageLog.member?.name,
         paymentStatus: usageLog.paymentStatus,
         taxDetails: {
-            rate: usageLog.tenant.taxRate || 0,
-            name: usageLog.tenant.taxName || 'Tax',
-            amount: usageLog.amountCharged - (usageLog.amountCharged / (1 + (usageLog.tenant.taxRate || 0)))
+            rate: usageLog.taxRate || usageLog.tenant.taxRate || 0,
+            name: usageLog.taxName || usageLog.tenant.taxName || 'IVA',
+            // taxAmount guardado al cerrar sesión (neto × taxRate)
+            amount: usageLog.taxAmount || 0,
         }
     };
 }
@@ -160,5 +163,124 @@ export async function checkNewPayments(tenantId: string, since: number) {
         }));
     } catch {
         return [];
+    }
+}
+
+/**
+ * Inicia el proceso de Checkout de Membresía usando un Payment Provider
+ */
+export async function createMemberCheckoutSession(memberId: string) {
+    const session = await auth();
+    if (!session?.user?.tenantId) return { success: false, error: 'No autorizado' };
+
+    const tenantId = session.user.tenantId;
+
+    try {
+        const member = await prisma.member.findUnique({
+            where: { id: memberId, tenantId },
+            // @ts-expect-error - Prisma client extension dynamic typing issue
+            include: { membershipPlan: true }
+        });
+
+        if (!member) return { success: false, error: 'Socio no encontrado' };
+        // @ts-expect-error - Prisma client doesn't infer included relation properly here
+        if (!member.membershipPlan) return { success: false, error: 'Socio no tiene plan asignado' };
+
+        // @ts-expect-error - Inference issue
+        const plan = member.membershipPlan;
+
+        // 1. Crear el Registro de Pago Pendiente
+        // @ts-expect-error - Prisma dynamic tenant extension issue
+        const pendingPayment = await prisma.membershipPayment.create({
+            data: {
+                tenantId,
+                memberId: member.id,
+                amount: plan.price,
+                status: 'PENDING',
+                dteType: plan.isTaxable ? 39 : 41,
+            }
+        });
+
+        // 2. Generar el Link de Pago en la Pasarela
+        const intentResponse = await paymentProvider.createPaymentIntent({
+            tenantId,
+            amount: plan.price,
+            referenceId: `MEM_${pendingPayment.id}`,
+            description: `Plan de Membresía ${plan.name} - ${member.name}`,
+            customerEmail: member.email || undefined
+        });
+
+        if (!intentResponse.success) {
+            return { success: false, error: 'Fallo al iniciar sesión de pago' };
+        }
+
+        // 3. Vincular el PaymentIntentID al registro local
+        // @ts-expect-error - Prisma dynamic tenant extension issue
+        await prisma.membershipPayment.update({
+            where: { id: pendingPayment.id },
+            data: { transactionId: intentResponse.transactionId }
+        });
+
+        return { success: true, paymentUrl: intentResponse.paymentUrl };
+
+    } catch (error) {
+        console.error("Error creating member checkout session:", error);
+        return { success: false, error: 'Error del sistema de pagos' };
+    }
+}
+
+/**
+ * Inicia el proceso de Checkout QR de una Mesa Activa
+ */
+export async function createTableCheckoutSession(tableId: string) {
+    const session = await auth();
+    if (!session?.user?.tenantId) return { success: false, error: 'No autorizado' };
+
+    const tenantId = session.user.tenantId;
+
+    try {
+        const table = await prisma.table.findUnique({
+            where: { id: tableId, tenantId }
+        });
+
+        if (!table || !table.currentSessionId) {
+            return { success: false, error: 'Mesa Inactiva / No Encontrada' };
+        }
+
+        const usageLog = await prisma.usageLog.findUnique({
+            where: { id: table.currentSessionId }
+        });
+
+        if (!usageLog) return { success: false, error: 'Sesión corrompida' };
+
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+        const ratePerHour = tenant?.baseRate || 0;
+
+        const now = new Date();
+        const durationMs = now.getTime() - usageLog.startedAt.getTime();
+        const durationHours = durationMs / (1000 * 60 * 60);
+        const timeCharge = Number((durationHours * ratePerHour).toFixed(2));
+
+        const totalToPay = timeCharge;
+
+        if (totalToPay <= 0) return { success: false, error: 'El saldo pendiente es $0' };
+
+        // Generar QR en Pasarela
+        const intentResponse = await paymentProvider.createPaymentIntent({
+            tenantId,
+            amount: totalToPay,
+            referenceId: `TAB_${table.currentSessionId}`,
+            description: `Liquidación Mesa ${table.number}`,
+        });
+
+        if (!intentResponse.success) {
+            return { success: false, error: 'Fallo pasarela de pagos' };
+        }
+
+        return { success: true, paymentUrl: intentResponse.paymentUrl };
+
+    } catch (error) {
+        console.error("Table qr error:", error);
+        return { success: false, error: 'Error general al generar QR' };
     }
 }

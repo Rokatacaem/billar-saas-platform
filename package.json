@@ -20,7 +20,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.34.0",
-    "jspdf": "^4.1.0",
+    "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "lodash": "^4.17.23",
     "lucide-react": "^0.564.0",

@@ -38,34 +38,63 @@ export default async function MemberHistoryPage({ params }: MemberHistoryProps) 
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 font-sans">
-            <header className="mb-8 text-center">
+            <header className="mb-8 text-center bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                 <div
-                    className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl text-white font-bold shadow-md"
+                    className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl text-white font-black shadow-lg ring-4 ring-white"
                     style={{ backgroundColor: tenant.primaryColor }}
                 >
                     {member.name.charAt(0)}
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900">{member.name}</h1>
-                <p className="text-sm text-gray-500">Miembro de {tenant.name}</p>
-                {member.discount > 0 && (
-                    <div className="mt-2 inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
-                        {member.discount}% Descuento VIP
-                    </div>
-                )}
+                <h1 className="text-3xl font-black text-gray-900 tracking-tight">{member.name}</h1>
+                <p className="text-sm text-gray-400 font-medium">{tenant.name} • {slug.toUpperCase()}</p>
+
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {member.membershipStatus === 'ACTIVO' ? (
+                        <div className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-xs font-black uppercase tracking-widest shadow-sm">
+                            Socio Activo
+                        </div>
+                    ) : (
+                        <div className="px-3 py-1 bg-rose-500 text-white rounded-lg text-xs font-black uppercase tracking-widest shadow-sm">
+                            Estado: Moroso
+                        </div>
+                    )}
+
+                    {member.discount > 0 && (
+                        <div className="px-3 py-1 bg-indigo-500 text-white rounded-lg text-xs font-black uppercase tracking-widest shadow-sm">
+                            VIP {member.discount}% OFF
+                        </div>
+                    )}
+                </div>
             </header>
 
+            {/* Member Dossier Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50 flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Hándicap</span>
+                    <div className="text-2xl font-black text-indigo-600">{member.handicap || '0.0'}</div>
+                </div>
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50 flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Casillero</span>
+                    <div className="text-2xl font-black text-emerald-600">{member.lockerNumber || 'N/A'}</div>
+                </div>
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50 flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Sesiones</span>
+                    <div className="text-2xl font-black text-gray-800">{totalSessions}</div>
+                </div>
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-50 flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Horas</span>
+                    <div className="text-2xl font-black text-gray-800">{totalHours}</div>
+                </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <div className="text-3xl font-bold text-indigo-600">{totalHours}</div>
-                    <div className="text-xs text-gray-500 uppercase font-semibold">Horas Jugadas</div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50 flex flex-col items-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Consumo</span>
+                    <div className="text-3xl font-black text-gray-900">${totalSpent.toLocaleString()}</div>
                 </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <div className="text-3xl font-bold text-green-600">${totalSpent.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500 uppercase font-semibold">Total Gastado</div>
-                </div>
-                <div className="bg-white p-4 rounded-xl shadow-sm text-center col-span-2">
-                    <div className="text-xl font-bold text-blue-600">${savedAmount.toLocaleString()}</div>
-                    <div className="text-xs text-gray-500 uppercase font-semibold">Ahorrado con Membresía</div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-50 flex flex-col items-center">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Ahorro Real</span>
+                    <div className="text-3xl font-black text-indigo-500">${savedAmount.toLocaleString()}</div>
                 </div>
             </div>
 

@@ -1,8 +1,7 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import { generateTenantTheme } from "@/lib/theme-generator";
+import ThemeProvider from "@/components/ui/ThemeProvider";
 
 interface TenantLayoutProps {
     children: React.ReactNode;
@@ -31,8 +30,10 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
             name: true,
             businessModel: true,
             primaryColor: true,
-            secondaryColor: true, // Agregado para el tema
+            secondaryColor: true,
             settings: true,
+            // @ts-expect-error Prisma client is not updated yet with uiConfig
+            uiConfig: true,
             logoUrl: true
         }
     });
@@ -42,15 +43,16 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
     const themeSettings = {
         primaryColor: tenant.primaryColor,
         secondaryColor: tenant.secondaryColor,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         backgroundColor: (tenant.settings as any)?.backgroundColor || '#ffffff',
-        businessModel: tenant.businessModel as any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        uiConfig: (tenant as any).uiConfig
     };
 
-    const theme = generateTenantTheme(themeSettings);
-
     return (
-        <ThemeProvider businessModel={tenant.businessModel}>
-            <div style={theme as React.CSSProperties} className="min-h-screen bg-background text-foreground transition-colors duration-300">
+        <ThemeProvider theme={themeSettings}>
+            {/* The actual root layout for tenant */}
+            <div className="min-h-screen bg-[var(--theme-bg)] text-gray-900 transition-colors duration-300">
                 {children}
             </div>
         </ThemeProvider>

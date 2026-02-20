@@ -89,10 +89,22 @@ export default function TenantDashboard({ tenant, tables, products, role }: Tena
                             📊 Reportes
                         </Link>
                         <Link
+                            href={`/tenant/${tenant.slug}/admin/z-report`}
+                            className="px-4 py-2 bg-white text-gray-800 text-sm font-semibold rounded-lg shadow-sm border border-gray-300 hover:bg-gray-100 transition-colors"
+                        >
+                            🔒 Cierre Z
+                        </Link>
+                        <Link
                             href={`/tenant/${tenant.slug}/admin/finance`}
                             className="px-4 py-2 bg-white text-emerald-700 text-sm font-semibold rounded-lg shadow-sm border border-emerald-200 hover:bg-emerald-50 transition-colors"
                         >
                             💰 Finanzas
+                        </Link>
+                        <Link
+                            href={`/tenant/${tenant.slug}/admin/settings/appearance`}
+                            className="px-4 py-2 bg-[var(--theme-primary)] text-white text-sm font-bold rounded-lg shadow-md hover:bg-[var(--theme-primary-hover)] transition-colors"
+                        >
+                            🎨 Apariencia Elite
                         </Link>
                     </div>
                 </div>

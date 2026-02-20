@@ -164,7 +164,7 @@ export default function QrClient({ tenant, table }: QrClientProps) {
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             onClick={() => confirmPayment('CARD')}
-                            className="bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition"
+                            className="bg-[var(--theme-primary)] text-white py-3 rounded-lg font-bold hover:bg-[var(--theme-primary-hover)] transition"
                         >
                             💳 Tarjeta
                         </button>
@@ -187,7 +187,7 @@ export default function QrClient({ tenant, table }: QrClientProps) {
                 <button
                     onClick={handlePayNow}
                     disabled={paymentProcessing}
-                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-md disabled:opacity-50"
+                    className="w-full py-3 bg-[var(--theme-primary)] text-white font-bold rounded-lg hover:bg-[var(--theme-primary-hover)] transition shadow-md disabled:opacity-50"
                 >
                     {paymentProcessing ? 'Cargando...' : 'Ver Cuenta y Pagar'}
                 </button>
@@ -225,7 +225,7 @@ export default function QrClient({ tenant, table }: QrClientProps) {
             <button
                 onClick={() => handleRequest('CALL')}
                 disabled={requestStatus === 'LOADING' || table.status === 'AVAILABLE'}
-                className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md flex items-center justify-center gap-3 text-lg font-bold transition-transform active:scale-95 disabled:opacity-70 disabled:bg-gray-400"
+                className="w-full py-6 bg-[var(--theme-primary)] hover:bg-[var(--theme-primary-hover)] text-white rounded-xl shadow-md flex items-center justify-center gap-3 text-lg font-bold transition-transform active:scale-95 disabled:opacity-70 disabled:bg-gray-400"
             >
                 <span className="text-2xl">🔔</span>
                 Llamar al Mozo

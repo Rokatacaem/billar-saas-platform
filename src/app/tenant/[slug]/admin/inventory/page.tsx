@@ -29,6 +29,11 @@ export default async function InventoryPage({ params }: InventoryPageProps) {
     // Fetch Products (Prisma extension automatically filters by tenantId)
     const products = await prisma.product.findMany({
         where: { tenantId: tenant.id },
+        include: {
+            recipes: {
+                include: { ingredient: true }
+            }
+        },
         orderBy: { name: 'asc' }
     });
 
@@ -41,7 +46,7 @@ export default async function InventoryPage({ params }: InventoryPageProps) {
                 </div>
             </header>
 
-            <InventoryClient initialProducts={products} tenantSlug={slug} />
+            <InventoryClient initialProducts={products} />
         </div>
     );
 }

@@ -11,6 +11,7 @@ const memberSchema = z.object({
     rut: z.string().optional(),
     phone: z.string().optional(),
     discount: z.number().min(0).max(100).default(0),
+    membershipPlanId: z.string().optional(),
 });
 
 export async function createMember(data: z.infer<typeof memberSchema>) {
@@ -23,7 +24,13 @@ export async function createMember(data: z.infer<typeof memberSchema>) {
     try {
         await prisma.member.create({
             data: {
-                ...validated,
+                name: validated.name,
+                email: validated.email,
+                rut: validated.rut,
+                phone: validated.phone,
+                discount: validated.discount,
+                membershipPlanId: validated.membershipPlanId,
+                subscriptionStatus: validated.membershipPlanId ? 'IN_ARREARS' : 'ACTIVE', // Si tiene plan nace debiendo, si no, es active free
                 tenantId
             }
         });
@@ -46,6 +53,9 @@ export async function getMembers(query: string = "") {
                 { name: { contains: query, mode: 'insensitive' } },
                 { rut: { contains: query, mode: 'insensitive' } }
             ]
+        },
+        include: {
+            membershipPlan: true // Incluye plan info para UI
         },
         orderBy: { name: 'asc' }
     });

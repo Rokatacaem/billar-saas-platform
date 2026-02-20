@@ -53,21 +53,19 @@ export async function addProductToTable(tableId: string, productId: string, quan
             }
 
             // 5. Execute Transaction
-            // Decrement Stock
-            await tx.product.update({
-                where: { id: productId },
-                data: { stock: { decrement: quantity } }
-            });
+            // Note: We avoid decrementing stock here manually and use the new deductStock logic 
+            // which handles recursion (recipes) and Kardex logging.
+            const { deductStock } = await import("./inventory-actions");
+            await deductStock(productId, quantity, table.tenantId, undefined, tx);
 
             // Add Order Item to Active Session
-            // We use table.currentSessionId to identify the usageLog
             await tx.orderItem.create({
                 data: {
                     quantity,
                     unitPrice: product.price, // Snapshot price
                     totalPrice: product.price * quantity,
                     productId: product.id,
-                    usageLogId: table.currentSessionId
+                    usageLogId: table.currentSessionId!
                 }
             });
         });

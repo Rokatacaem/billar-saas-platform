@@ -1,200 +1,144 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { validateWebhookSignature, generateIdempotencyKey } from '@/lib/security/webhook-validator';
-import { logSecurityEvent, ThreatLevel } from '@/lib/security/intrusion-detector';
-import { apiLimiter, checkRateLimit } from '@/lib/security/rate-limiter';
+import { paymentProvider } from '@/lib/payments/mock-payment-provider';
+import { billingProvider } from '@/lib/billing/mock-billing-provider';
+import { calculateTaxBreakdown } from '@/app/actions/tax-actions';
 
-export const dynamic = 'force-dynamic';
-
-/**
- * Webhook Endpoint para Pagos (Stripe/Webpay)
- * 🔐 SECURITY: Validación HMAC + Idempotencia
- */
-export async function POST(req: Request) {
-    const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-
-    // 🛡️ SECURITY: Rate limiting específico para webhooks
-    const rateLimitKey = `webhook:${clientIP}`;
-    const rateLimit = checkRateLimit(rateLimitKey, apiLimiter);
-
-    if (!rateLimit.allowed) {
-        await logSecurityEvent({
-            type: 'WEBHOOK_RATE_LIMIT',
-            severity: ThreatLevel.HIGH,
-            message: `Webhook rate limit exceeded from ${clientIP}`,
-            ip: clientIP,
-            details: { retryAfter: rateLimit.retryAfter }
-        });
-
-        return NextResponse.json(
-            { error: 'Rate limit exceeded' },
-            {
-                status: 429,
-                headers: { 'Retry-After': String(rateLimit.retryAfter || 60) }
-            }
-        );
-    }
-
+// 🛡️ Webhook Receiver: El Oído del Sistema SaaS
+// Esta ruta es pública, pero protegida criptográficamente por la firma del Webhook
+export async function POST(req: NextRequest) {
     try {
-        // Leer body crudo (necesario para validar firma)
         const rawBody = await req.text();
+        const signature = req.headers.get('x-webhook-signature');
 
-        // Detectar proveedor por headers
-        const stripeSignature = req.headers.get('stripe-signature');
-        const webpaySignature = req.headers.get('x-webpay-signature');
-
-        let provider: 'stripe' | 'webpay' | null = null;
-        let signature: string | null = null;
-
-        if (stripeSignature) {
-            provider = 'stripe';
-            signature = stripeSignature;
-        } else if (webpaySignature) {
-            provider = 'webpay';
-            signature = webpaySignature;
-        } else {
-            await logSecurityEvent({
-                type: 'WEBHOOK_INVALID_PROVIDER',
-                severity: ThreatLevel.HIGH,
-                message: 'Webhook request without valid provider signature',
-                ip: clientIP,
-                details: { headers: Object.fromEntries(req.headers.entries()) }
-            });
-
-            return NextResponse.json(
-                { error: 'Missing signature header' },
-                { status: 401 }
-            );
+        if (!signature) {
+            console.error('[Sentinel] Hook rechazado: Falta Header x-webhook-signature');
+            return NextResponse.json({ error: 'Falta Firma (Missing Signature)' }, { status: 401 });
         }
 
-        // 🔐 VALIDAR FIRMA HMAC
-        const isValidSignature = validateWebhookSignature(provider, rawBody, signature);
-
-        if (!isValidSignature) {
-            await logSecurityEvent({
-                type: 'WEBHOOK_INVALID_SIGNATURE',
-                severity: ThreatLevel.CRITICAL,
-                message: `Invalid webhook signature from ${provider}`,
-                ip: clientIP,
-                details: { provider }
-            });
-
-            return NextResponse.json(
-                { error: 'Invalid signature' },
-                { status: 401 }
-            );
-        }
-
-        // Parsear evento
-        const event = JSON.parse(rawBody);
-
-        // Extraer datos relevantes según proveedor
-        let eventId: string;
-        let tenantId: string;
-        let usageLogId: string;
-        let amount: number;
-        let timestamp: number;
-
-        if (provider === 'stripe') {
-            eventId = event.id;
-            // Ajustar según estructura real de Stripe
-            tenantId = event.data?.object?.metadata?.tenantId;
-            usageLogId = event.data?.object?.metadata?.usageLogId;
-            amount = event.data?.object?.amount / 100; // Stripe usa centavos
-            timestamp = event.created;
-        } else {
-            // Webpay
-            eventId = event.transaction_id || event.id;
-            tenantId = event.metadata?.tenantId;
-            usageLogId = event.metadata?.usageLogId;
-            amount = event.amount;
-            timestamp = Math.floor(Date.now() / 1000);
-        }
-
-        if (!eventId || !tenantId || !amount || !usageLogId) {
-            await logSecurityEvent({
-                type: 'WEBHOOK_INVALID_PAYLOAD',
-                severity: ThreatLevel.MEDIUM,
-                message: 'Webhook missing required fields',
-                ip: clientIP,
-                details: { provider, eventId, tenantId, usageLogId }
-            });
-
-            return NextResponse.json(
-                { error: 'Invalid payload' },
-                { status: 400 }
-            );
-        }
-
-        // 🔐 GENERAR CLAVE DE IDEMPOTENCIA
-        const idempotencyKey = generateIdempotencyKey(eventId, amount, timestamp);
-
-        // Verificar si ya procesamos este evento
-        const existingRecord = await prisma.paymentRecord.findUnique({
-            where: { idempotencyKey }
+        // 1. Delegar auditoría criptográfica al Pago Provider abstracto
+        const verification = await paymentProvider.handleWebhook({
+            rawBody,
+            signature
         });
 
-        if (existingRecord) {
-            console.log(`✅ Webhook already processed (idempotency): ${eventId}`);
-
-            return NextResponse.json({
-                received: true,
-                duplicate: true,
-                message: 'Event already processed'
-            });
+        if (!verification.isValid || !verification.referenceId) {
+            console.error('[Sentinel] Hook rechazado: Payload o Firma Inválida');
+            return NextResponse.json({ error: 'Validación Criptográfica Fallida' }, { status: 403 });
         }
 
-        // 💰 PROCESAR PAGO
-        await prisma.paymentRecord.create({
-            data: {
-                tenantId,
-                usageLogId,
-                amount,
-                method: provider.toUpperCase(),
-                provider: provider.toUpperCase(), // Schema requires provider field
-                status: 'COMPLETED',
-                idempotencyKey,
-                webhookData: event, // Guardar payload completo para auditoría
-                createdAt: new Date(timestamp * 1000)
+        console.log(`[Webhook] Pago Confirmado: ${verification.transactionId} | Ref: ${verification.referenceId}`);
+
+        // 2. Efecto Dominó (Sentinel Logic)
+        const ref = verification.referenceId;
+
+        // 🔹 A) FLUJO: Pago de Membresía (Suscripción Híbrida)
+        if (ref.startsWith('MEM_')) {
+            const membershipPaymentId = ref.replace('MEM_', '');
+
+            // @ts-expect-error
+            const payment = await prisma.membershipPayment.findUnique({
+                where: { id: membershipPaymentId },
+                include: { member: { include: { membershipPlan: true } } }
+            });
+
+            if (!payment) return NextResponse.json({ error: 'Pago Membresía no encontrado' }, { status: 404 });
+
+            // 1. Marcar el Pago como PAID
+            // @ts-expect-error
+            await prisma.membershipPayment.update({
+                where: { id: membershipPaymentId },
+                data: { status: 'PAID' }
+            });
+
+            // 2. Reactivar al Socio
+            const member = payment.member;
+            const plan = member.membershipPlan;
+            const now = new Date();
+            const currentEnd = member.currentPeriodEnd || now;
+
+            const nextDate = new Date(Math.max(now.getTime(), currentEnd.getTime()));
+            if (plan?.billingCycle === 'YEARLY') {
+                nextDate.setFullYear(nextDate.getFullYear() + 1);
+            } else {
+                nextDate.setMonth(nextDate.getMonth() + 1);
             }
-        });
 
-        // 🛡️ SECURITY: Log successful payment
-        await logSecurityEvent({
-            type: 'PAYMENT_WEBHOOK_PROCESSED',
-            severity: ThreatLevel.LOW,
-            message: `Payment processed via ${provider}`,
-            tenantId,
-            details: {
-                provider,
-                amount,
-                eventId,
-                idempotencyKey
+            // @ts-expect-error
+            await prisma.member.update({
+                where: { id: member.id },
+                data: {
+                    subscriptionStatus: 'ACTIVE',
+                    currentPeriodEnd: nextDate
+                }
+            });
+
+            console.log(`[Dominó MEM] Socio ${member.name} activado hasta ${nextDate.toISOString()}`);
+            return NextResponse.json({ success: true, processed: 'MEM' });
+        }
+
+        // 🔹 B) FLUJO: PAGO DE MESA ACTIVA (QR Checkout)
+        if (ref.startsWith('TAB_')) {
+            const sessionId = ref.replace('TAB_', ''); // Este es el UsageLogId
+
+            const usageSession = await prisma.usageLog.findUnique({
+                where: { id: sessionId },
+                include: { table: true }
+            });
+
+            if (!usageSession) return NextResponse.json({ error: 'Sesión UsageLog no encontrada' }, { status: 404 });
+
+            // 1. Marcar Sesión pagada (Evitando cobro doble)
+            await prisma.usageLog.update({
+                where: { id: sessionId },
+                data: { paymentStatus: 'PAID' }
+            });
+
+            // 2. Liberar la Mesa en el Cockpit Central
+            if (usageSession.table.status === 'OCCUPIED' || usageSession.table.status === 'ENDING') {
+                // Si seguía ocupada, la mandamos a limpiar
+                await prisma.table.update({
+                    where: { id: usageSession.table.id },
+                    data: { status: 'CLEANING', currentSessionId: null }
+                });
+                console.log(`[Dominó TAB] Mesa ${usageSession.table.number} liberada (CLEANING).`);
             }
-        });
 
-        console.log(`✅ Payment webhook processed: ${eventId} - ${amount}`);
+            // 3. Emitir el DTE automáticamente (Doble Integración Hitos)
+            // Si la mesa no tenía un DTE ya generado (ej. lo generó en toggleTableStatus), lo emitimos aquí como fallback
+            // @ts-expect-error
+            if (!usageSession.folioDTE && usageSession.amountCharged > 0) {
+                const taxBreakdown = calculateTaxBreakdown(usageSession.amountCharged, usageSession.taxRate);
+                const dteRes = await billingProvider.emitDocument({
+                    tenantId: usageSession.tenantId,
+                    // @ts-expect-error
+                    tipoDTE: usageSession.tipoDTE || 39,
+                    montoNeto: taxBreakdown.netAmount,
+                    montoIva: taxBreakdown.taxAmount,
+                    montoTotal: taxBreakdown.grossAmount
+                });
 
-        return NextResponse.json({
-            received: true,
-            processed: true,
-            eventId
-        });
+                // @ts-expect-error
+                await prisma.usageLog.update({
+                    where: { id: sessionId },
+                    data: {
+                        folioDTE: dteRes.folio,
+                        dteStatus: dteRes.status,
+                        urlCertificado: dteRes.urlCertificado
+                    }
+                });
+                console.log(`[Dominó DTE] Ticket/DTE Emitido automáticamente post-pago: Folio ${dteRes.folio}`);
+            }
 
-    } catch (error: any) {
-        console.error('Webhook processing error:', error);
+            return NextResponse.json({ success: true, processed: 'TAB' });
+        }
 
-        await logSecurityEvent({
-            type: 'WEBHOOK_PROCESSING_ERROR',
-            severity: ThreatLevel.HIGH,
-            message: 'Failed to process payment webhook',
-            ip: clientIP,
-            details: { error: error.message }
-        });
+        console.error(`[Sentinel] Hook falló: Prefijo de ReferenceId desconocido (${ref})`);
+        return NextResponse.json({ error: 'Unknown Reference Prefix' }, { status: 400 });
 
-        return NextResponse.json(
-            { error: 'Internal server error' },
-            { status: 500 }
-        );
+    } catch (e: unknown) {
+        console.error('[Webhook Fatal]', e);
+        const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+        return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

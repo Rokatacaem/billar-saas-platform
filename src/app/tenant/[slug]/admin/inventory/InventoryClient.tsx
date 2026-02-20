@@ -8,22 +8,37 @@ interface Product {
     id: string;
     name: string;
     price: number;
+    costPrice: number;
     stock: number;
+    minStock: number;
+    sku: string | null;
+    recipes?: RecipeItem[];
+}
+
+interface RecipeItem {
+    id: string;
+    ingredientId: string;
+    quantity: number;
+    ingredient: {
+        name: string;
+    };
 }
 
 interface InventoryClientProps {
     initialProducts: Product[];
-    tenantSlug: string;
 }
 
-export default function InventoryClient({ initialProducts, tenantSlug }: InventoryClientProps) {
+export default function InventoryClient({ initialProducts }: InventoryClientProps) {
     const router = useRouter();
-    const [products, setProducts] = useState(initialProducts);
+    const [products, setProducts] = useState<Product[]>(initialProducts);
     const [searchTerm, setSearchTerm] = useState('');
     const [showLowStock, setShowLowStock] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Recipe Management State
+    const [recipeIngredients, setRecipeIngredients] = useState<{ id: string, name: string, qty: number }[]>([]);
 
     // Filter Logic
     const filteredProducts = products.filter(p => {
@@ -34,7 +49,19 @@ export default function InventoryClient({ initialProducts, tenantSlug }: Invento
 
     const handleEdit = (product: Product) => {
         setEditingProduct(product);
+        setRecipeIngredients(product.recipes?.map(r => ({
+            id: r.ingredientId,
+            name: r.ingredient.name,
+            qty: r.quantity
+        })) || []);
         setIsModalOpen(true);
+    };
+
+    const getStockStatus = (product: Product) => {
+        const min = product.minStock || 5;
+        if (product.stock <= min * 0.5) return { color: '#ef4444', label: 'Crítico', bg: '#fee2e2' };
+        if (product.stock <= min) return { color: '#f59e0b', label: 'Aviso', bg: '#fef3c7' };
+        return { color: '#10b981', label: 'Normal', bg: '#d1fae5' };
     };
 
     const handleDelete = async (id: string) => {
@@ -76,7 +103,7 @@ export default function InventoryClient({ initialProducts, tenantSlug }: Invento
                 </div>
                 <button
                     onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
-                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold shadow-sm w-full sm:w-auto"
+                    className="px-6 py-2 bg-[var(--theme-primary)] text-white rounded-lg hover:bg-[var(--theme-primary-hover)] font-semibold shadow-sm w-full sm:w-auto"
                 >
                     + Nuevo Producto
                 </button>
@@ -106,20 +133,49 @@ export default function InventoryClient({ initialProducts, tenantSlug }: Invento
                                     <td className="px-6 py-4 text-gray-900 font-medium">{product.name}</td>
                                     <td className="px-6 py-4 text-right font-mono text-gray-600">${product.price.toLocaleString()}</td>
                                     <td className="px-6 py-4 text-center">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${product.stock < 5 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                            {product.stock}
-                                        </span>
+                                        {(() => {
+                                            const status = getStockStatus(product);
+                                            return (
+                                                <div className="flex flex-col items-center">
+                                                    <span
+                                                        className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mb-1"
+                                                        style={{ backgroundColor: status.bg, color: status.color }}
+                                                    >
+                                                        {status.label}
+                                                    </span>
+                                                    <span className="text-sm font-bold text-gray-700">
+                                                        {product.stock}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <button
                                             onClick={() => handleEdit(product)}
-                                            className="text-indigo-600 hover:text-indigo-800 font-medium text-sm mr-4"
+                                            className="text-indigo-600 hover:text-indigo-800 font-bold text-xs mr-4 transition-colors"
                                         >
-                                            Editar
+                                            Editar / Receta
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                const reason = prompt(`Razón de la merma para ${product.name}:`);
+                                                if (!reason) return;
+                                                const qty = prompt(`Cantidad a descontar (ej: 1):`);
+                                                if (!qty || isNaN(parseFloat(qty))) return;
+
+                                                const { recordManualMovement } = await import('@/app/actions/inventory-actions');
+                                                const res = await recordManualMovement(product.id, -parseFloat(qty), 'MERMA', reason);
+                                                if (res.success) router.refresh();
+                                                else alert(res.error);
+                                            }}
+                                            className="text-amber-600 hover:text-amber-800 font-bold text-xs mr-4 transition-colors"
+                                        >
+                                            Merma
                                         </button>
                                         <button
                                             onClick={() => handleDelete(product.id)}
-                                            className="text-red-500 hover:text-red-700 text-sm"
+                                            className="text-gray-400 hover:text-rose-600 font-bold text-xs transition-colors"
                                         >
                                             Borrar
                                         </button>
@@ -136,67 +192,177 @@ export default function InventoryClient({ initialProducts, tenantSlug }: Invento
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                            <h3 className="font-bold text-lg text-gray-800">{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h3>
+                            <h3 className="font-bold text-lg text-gray-800">{editingProduct ? 'Configurar Producto & Receta' : 'Nuevo Producto'}</h3>
                             <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
                         </div>
 
                         <form action={async (formData) => {
                             setIsLoading(true);
                             const name = formData.get('name') as string;
+                            const sku = formData.get('sku') as string;
                             const price = parseFloat(formData.get('price') as string);
+                            const costPrice = parseFloat(formData.get('costPrice') as string) || 0;
                             const stock = parseInt(formData.get('stock') as string);
+                            const minStock = parseInt(formData.get('minStock') as string) || 5;
 
-                            const res = await upsertProduct({
-                                id: editingProduct?.id,
-                                name,
-                                price,
-                                stock
-                            });
+                            try {
+                                const res = await upsertProduct({
+                                    id: editingProduct?.id,
+                                    name,
+                                    sku,
+                                    price,
+                                    costPrice,
+                                    stock,
+                                    minStock
+                                });
 
-                            if (res.error) {
-                                alert(res.error);
-                            } else {
-                                router.refresh();
-                                closeModal();
-                                // Optimistic update (optional but nice)
+                                if (res.success && editingProduct?.id) {
+                                    const { saveRecipe } = await import('@/app/actions/inventory-actions');
+                                    await saveRecipe(editingProduct.id, recipeIngredients.map(ri => ({
+                                        ingredientId: ri.id,
+                                        quantity: ri.qty
+                                    })));
+                                }
+
+                                if (res.error) {
+                                    alert(res.error);
+                                } else {
+                                    router.refresh();
+                                    closeModal();
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                alert("Error al guardar");
                             }
                             setIsLoading(false);
                         }}>
-                            <div className="p-6 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                                    <input
-                                        name="name"
-                                        defaultValue={editingProduct?.name}
-                                        required
-                                        placeholder="Ej. Coca Cola Zero"
-                                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
+                            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label htmlFor="prod-name" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nombre</label>
+                                        <input
+                                            id="prod-name"
+                                            name="name"
+                                            defaultValue={editingProduct?.name}
+                                            required
+                                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold"
+                                        />
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label htmlFor="prod-sku" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">SKU / Código</label>
+                                        <input
+                                            id="prod-sku"
+                                            name="sku"
+                                            defaultValue={editingProduct?.sku || ''}
+                                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono"
+                                        />
+                                    </div>
                                 </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                                        <label htmlFor="prod-price" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Precio Venta</label>
                                         <input
+                                            id="prod-price"
                                             name="price"
                                             type="number"
                                             step="0.01"
-                                            min="0"
                                             defaultValue={editingProduct?.price}
                                             required
-                                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold text-indigo-600"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Stock Inicial</label>
+                                        <label htmlFor="prod-cost" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Costo Base</label>
                                         <input
-                                            name="stock"
+                                            id="prod-cost"
+                                            name="costPrice"
                                             type="number"
-                                            min="0"
-                                            defaultValue={editingProduct?.stock}
-                                            required
-                                            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            step="0.01"
+                                            defaultValue={editingProduct?.costPrice}
+                                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold text-gray-500"
                                         />
                                     </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label htmlFor="prod-stock" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock Actual</label>
+                                        <input
+                                            id="prod-stock"
+                                            name="stock"
+                                            type="number"
+                                            defaultValue={editingProduct?.stock}
+                                            required
+                                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="prod-min" className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Stock Mínimo</label>
+                                        <input
+                                            id="prod-min"
+                                            name="minStock"
+                                            type="number"
+                                            defaultValue={editingProduct?.minStock || 5}
+                                            className="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-bold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Recipe Editor Section */}
+                                <div className="pt-4 border-t border-gray-100">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        📦 Composición de Receta (Escandallo)
+                                    </h4>
+
+                                    <div className="space-y-2 mb-4">
+                                        {recipeIngredients.map((item, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                                <span className="flex-1 text-xs font-bold text-gray-700">{item.name}</span>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={item.qty}
+                                                    aria-label={`Cantidad de ${item.name}`}
+                                                    onChange={(e) => {
+                                                        const newArr = [...recipeIngredients];
+                                                        newArr[idx].qty = parseFloat(e.target.value);
+                                                        setRecipeIngredients(newArr);
+                                                    }}
+                                                    className="w-20 px-2 py-1 border rounded text-xs font-mono"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setRecipeIngredients(recipeIngredients.filter((_, i) => i !== idx))}
+                                                    className="text-gray-400 hover:text-red-500"
+                                                >
+                                                    &times;
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <select
+                                        id="ingredient-selector"
+                                        className="w-full px-4 py-2 border rounded-xl text-xs font-medium bg-white"
+                                        onChange={(e) => {
+                                            const id = e.target.value;
+                                            if (!id) return;
+                                            const prod = products.find(p => p.id === id);
+                                            if (prod) {
+                                                setRecipeIngredients([...recipeIngredients, { id: prod.id, name: prod.name, qty: 1 }]);
+                                            }
+                                            e.target.value = "";
+                                        }}
+                                    >
+                                        <option value="">+ Añadir Ingrediente...</option>
+                                        {products.filter(p => !recipeIngredients.find(ri => ri.id === p.id) && p.id !== editingProduct?.id).map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                    <p className="mt-2 text-[10px] text-gray-400 italic text-center">
+                                        * El costo se recalcula automáticamente al guardar.
+                                    </p>
                                 </div>
                             </div>
                             <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3">
@@ -210,7 +376,7 @@ export default function InventoryClient({ initialProducts, tenantSlug }: Invento
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                    className="px-6 py-2 bg-[var(--theme-primary)] text-white font-semibold rounded-lg hover:bg-[var(--theme-primary-hover)] disabled:opacity-50"
                                 >
                                     {isLoading ? 'Guardando...' : 'Guardar'}
                                 </button>

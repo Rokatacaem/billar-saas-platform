@@ -37,6 +37,17 @@ enum MemberCategory {
   SOCIO // Cliente con membresía activa y cuota al día
 }
 
+enum MaintenanceType {
+  PREVENTIVO
+  CORRECTIVO
+}
+
+enum MaintenanceCategory {
+  PANO
+  ELECTRICO
+  ESTRUCTURA
+}
+
 model Tenant {
   id              String       @id @default(cuid())
   name            String
@@ -58,14 +69,23 @@ model Tenant {
   locale         String @default("es-CL") // Formatting: 1.000 vs 1,000
   timezone       String @default("America/Santiago") // IANA Timezone
 
-  taxRate Float  @default(0.19) // 19%
-  taxName String @default("IVA") // Tax Label
+  taxRate     Float  @default(0.19)  // Decimal: 0.19 = 19% IVA
+  taxName     String @default("IVA") // Etiqueta: IVA, IGV, sales tax
+  isTaxExempt Boolean @default(false) // true = exento, 0% sin alerta Sentinel
+
+  // 📝 Legal & Billing Info (SII Connect)
+  rutEmisor           String? // Formato: 12345678-5
+  razonSocial         String?
+  giro                String?
+  direccionTributaria String?
+  folioRanges         FolioRange[] // Autonumeración por tipo (33, 39, etc.)
 
   // Business Model & Tier Settings
   businessModel BusinessModel @default(COMERCIAL)
   tierSettings  Json? // VIP thresholds, discounts, etc
 
   settings  Json?
+  uiConfig  Json? // Parametrización avanzada del Frontend Vanguard
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -78,6 +98,8 @@ model Tenant {
   serviceRequests ServiceRequest[]
   paymentRecords  PaymentRecord[]
   systemLogs      SystemLog[]
+  maintenanceLogs MaintenanceLog[] @relation("TenantMaintenance")
+  stockMovements  StockMovement[]
   // generatedReports GeneratedReport[] // TEMP: Disabled pending schema validator fix
 }
 
@@ -89,6 +111,19 @@ enum LeadStatus {
   CONVERTED
   ARCHIVED
 }
+
+// === Suscripciones Club (Híbridas) ===
+enum SubscriptionStatus {
+  ACTIVE
+  IN_ARREARS
+  CANCELLED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
 
 // Landing Page - Lead Capture
 model Lead {
@@ -133,14 +168,22 @@ model Member {
 
   // VIP Tier System
   category          MemberCategory @default(GENERAL)
-  membershipStatus  String? // ACTIVE, PENDING_PAYMENT, EXPIRED
-  membershipDueDate DateTime? // Próximo vencimiento de cuota
+  
+  // 🎟️ Suscripciones Híbridas (Club)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd   DateTime?
+  membershipPlanId   String?
+  membershipPlan     MembershipPlan? @relation(fields: [membershipPlanId], references: [id])
+  payments           MembershipPayment[]
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   usageLogs   UsageLog[]
   tierChanges TierChange[] // Audit trail
+
+  lockerNumber      String?
+  handicap          Float?   @default(0.0)
 
   amountSpent Float @default(0.0) // Metric for "Best Customer"
 
@@ -149,7 +192,9 @@ model Member {
 
   @@index([tenantId])
   @@index([category])
+  @@index([subscriptionStatus])
 }
+
 
 model Table {
   id               String           @id @default(cuid())
@@ -162,8 +207,95 @@ model Table {
   usageLogs        UsageLog[]
   serviceRequests  ServiceRequest[] // QR Notifications
 
+  totalPlayHours       Float             @default(0.0)
+  maintenanceThreshold Float             @default(100.0)
+  lastMaintenanceAt    DateTime?
+  maintenanceLogs      MaintenanceLog[] @relation("TableMaintenance")
+
   @@unique([number, tenantId])
   @@index([tenantId])
+}
+
+model MembershipPlan {
+  id           String       @id @default(cuid())
+  name         String
+  price        Float
+  isTaxable    Boolean      @default(true) // true: 19% IVA, false: Exento (DTE 41)
+  billingCycle BillingCycle @default(MONTHLY)
+  
+  tenantId     String
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  members      Member[]
+  
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([tenantId])
+}
+
+model MembershipPayment {
+  id           String   @id @default(cuid())
+  amount       Float
+  taxAmount    Float    @default(0.0) // 0 si el plan es isTaxable=false
+  dteType      Int      @default(39)  // 39=Boleta, 41=Boleta Honorarios/Exenta
+  
+  // SII Connect Info
+  folioDTE     Int?
+  dteStatus    String?
+  urlCertificado String?
+
+  // 💳 Webhook & Payment Gateway
+  transactionId String?  @unique // ID en Webpay/Stripe (Payment Intent)
+  status        String   @default("PENDING") // PENDING, PAID, FAILED
+
+  memberId     String
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([memberId])
+  @@index([tenantId])
+}
+
+model MaintenanceLog {
+  id         String              @id @default(cuid())
+  type       MaintenanceType
+  category   MaintenanceCategory
+  cost       Float               @default(0.0)
+  technician String
+  notes      String?
+
+  tableId  String
+  targetTable    Table  @relation("TableMaintenance", fields: [tableId], references: [id], onDelete: Cascade)
+
+  tenantId String
+  logTenant   Tenant @relation("TenantMaintenance", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tableId])
+}
+
+model FolioRange {
+  id           String @id @default(cuid())
+  tenantId     String
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tipoDTE      Int    // SII Tipo Documento: 33 (Factura), 39 (Boleta), 61 (Nota Crédito)
+  startFolio   Int
+  endFolio     Int
+  currentFolio Int    @default(0) // El último folio consumido
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, tipoDTE])
 }
 
 model UsageLog {
@@ -175,7 +307,21 @@ model UsageLog {
   startedAt       DateTime
   endedAt         DateTime?
   durationMinutes Int?
-  amountCharged   Float     @default(0.0) // Final Total
+  amountCharged   Float     @default(0.0) // Final Total (con impuesto incluido)
+
+  // 🧾 Tax Breakdown (por sesión)
+  taxAmount Float   @default(0.0) // Monto del impuesto incluido en amountCharged
+  taxRate   Float   @default(0.0) // Tasa aplicada (e.g. 0.19)
+  taxName   String  @default("IVA") // Etiqueta del impuesto
+
+  // 📄 Destino DTE (SII Connect)
+  tipoDTE             Int?    // 39 (Boleta) o 33 (Factura)
+  rutReceptor         String? // 12345678-5
+  razonSocialReceptor String?
+  giroReceptor        String?
+  folioDTE            Int?    // Número de folio oficial asignado
+  dteStatus           String? // PENDING, GENERATED, SENT, FAILED
+  urlCertificado      String? // Link al PDF o QR validador
 
   discountApplied Float   @default(0.0) // Amount saved
   memberId        String?
@@ -230,10 +376,34 @@ model PaymentRecord {
 model DailyBalance {
   id             String   @id @default(cuid())
   date           DateTime @default(now())
-  totalRevenue   Float    @default(0.0)
-  timeRevenue    Float    @default(0.0)
-  productRevenue Float    @default(0.0)
-  closedBy       String // User ID or Name
+
+  // === 1. Revenue Streams ===
+  totalRevenue      Float @default(0.0) // Suma de todos los streams
+  timeRevenue       Float @default(0.0) // Taxímetro (tiempo de juego)
+  productRevenue    Float @default(0.0) // Bar / Cocina
+  membershipRevenue Float @default(0.0) // Cuotas sociales (modelo Club)
+  rentalRevenue     Float @default(0.0) // Arriendos (Lockers, canchas extra)
+
+  // === 2. Payment Reconciliation ===
+  cashRevenue   Float @default(0.0) // Efectivo teórico del sistema
+  cardRevenue   Float @default(0.0) // Tarjeta / Digital
+  creditRevenue Float @default(0.0) // Cuentas corrientes / Crédito socio
+
+  // === 3. Bottom Line (Costos y Pérdidas) ===
+  totalCost       Float @default(0.0) // COGS: Costo de insumos vendidos
+  wasteCost       Float @default(0.0) // Valor de mermas registradas en el turno
+  maintenanceCost Float @default(0.0) // Gastos de mantenimiento del turno
+  netProfit       Float @default(0.0) // Utilidad Neta = Ingresos - (COGS + Mermas + Mantenimiento)
+
+  // === 4. Blind Cash Audit (Sentinel) ===
+  cashInHand     Float?  // Efectivo contado manualmente por el cajero
+  cashDifference Float?  // +Sobra / -Falta
+  hasCashAlert   Boolean @default(false) // 🚩 Bandera Roja Sentinel
+
+  // === Meta ===
+  closedBy String
+  notes    String?
+  status   String  @default("CLOSED") // OPEN, CLOSED
 
   usageLogs UsageLog[]
 
@@ -244,21 +414,64 @@ model DailyBalance {
   updatedAt DateTime @updatedAt
 
   @@index([tenantId])
+  @@index([date])
+  @@index([tenantId, date]) // Filtro de reportes por periodo
 }
+
 
 model Product {
   id        String   @id @default(cuid())
   name      String
-  price     Float
+  sku       String?  // Código único de inventario
+  price     Float    // Precio de venta
+  costPrice Float    @default(0.0) // Precio de compra (costo)
   stock     Int      @default(0)
+  minStock  Int      @default(0) // Umbral para alertas
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orderItems OrderItem[]
+  orderItems      OrderItem[]
+  stockMovements  StockMovement[]
+  recipes         Recipe[]        @relation("ParentProduct")
+  usedInRecipes   Recipe[]        @relation("IngredientProduct")
 
   @@index([tenantId])
+  @@index([sku])
+}
+
+model StockMovement {
+  id        String   @id @default(cuid())
+  quantity  Int
+  type      String   // ENTRADA, SALIDA, VENTA, MERMA, AJUSTE
+  reason    String?
+  
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  userId    String?  // ID del responsable del movimiento
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([productId])
+}
+
+model Recipe {
+  id              String  @id @default(cuid())
+  parentId        String  // El producto compuesto (ej. "Mojito")
+  parent          Product @relation("ParentProduct", fields: [parentId], references: [id], onDelete: Cascade)
+  
+  ingredientId    String  // El insumo base (ej. "Ron")
+  ingredient      Product @relation("IngredientProduct", fields: [ingredientId], references: [id], onDelete: Cascade)
+  
+  quantity        Float   // Cantidad proporcional del ingrediente
+
+  @@index([parentId])
+  @@index([ingredientId])
 }
 
 model OrderItem {
