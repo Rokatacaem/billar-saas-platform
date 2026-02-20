@@ -48,6 +48,7 @@ model Tenant {
 
   primaryColor   String  @default("#1a4d2e")
   secondaryColor String  @default("#ffffff")
+  backgroundColor String @default("#ffffff")
   logoUrl        String?
   baseRate       Float   @default(100.0) // Tarifa por minuto por defecto
 
