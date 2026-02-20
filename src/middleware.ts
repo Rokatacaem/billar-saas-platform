@@ -8,9 +8,18 @@ export default auth(async (req) => {
     const hostname = req.headers.get("host") || "";
     const clientIP = getClientIP(req);
 
-    // Define tu dominio raíz (ej. localhost:3000 o tuapp.cl)
+    // Define tu dominio raíz (ej. localhost:3000 o billar-saas-platform.vercel.app)
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
-    const subdominio = hostname.replace(`.${rootDomain}`, "");
+
+    // Extraer subdominio de forma más robusta
+    let subdominio = "";
+    if (hostname.endsWith(rootDomain)) {
+        subdominio = hostname.replace(`.${rootDomain}`, "").replace(rootDomain, "");
+    } else {
+        // Fallback para dominios que no coinciden exactamente (ej. .vercel.app)
+        const parts = hostname.split('.');
+        if (parts.length > 2) subdominio = parts[0];
+    }
 
     const isTenantRoute = subdominio !== hostname && subdominio !== "www";
     const session = req.auth;

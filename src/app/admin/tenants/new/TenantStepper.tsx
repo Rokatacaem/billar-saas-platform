@@ -12,13 +12,16 @@ import {
     AlertCircle,
     LayoutDashboard,
     Briefcase,
-    ShieldCheck
+    ShieldCheck,
+    Upload,
+    Loader2
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
 import { validateThemeContrast } from '@/lib/theme-generator';
 import { createTenantWithAssets } from '@/app/actions/admin-actions';
+import { uploadLogo } from '@/app/actions/upload-actions';
 
 /**
  * Utility for Tailwind classes
@@ -37,7 +40,7 @@ const STEPS = [
 export default function TenantStepper() {
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
+    const [isUploading, setIsUploading] = useState(false);
     // Form State
     const [formData, setFormData] = useState({
         name: '',
@@ -306,6 +309,29 @@ function Step2Business({ data, onSelect }: { data: any, onSelect: (val: string) 
 }
 
 function Step3Branding({ data, onChange, setFormData }: { data: any, onChange: (e: any) => void, setFormData: React.Dispatch<React.SetStateAction<any>> }) {
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const { url } = await uploadLogo(formData);
+            setFormData((prev: any) => ({ ...prev, logoUrl: url }));
+            toast.success('Logo subido correctamente');
+        } catch (error) {
+            toast.error('Error al subir el logo');
+            console.error(error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const contrast = validateThemeContrast({
         primaryColor: data.primaryColor,
         secondaryColor: '#ffffff',
@@ -323,15 +349,39 @@ function Step3Branding({ data, onChange, setFormData }: { data: any, onChange: (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 <div className="space-y-6">
                     <div className="space-y-2">
-                        <label htmlFor="logoUrl" className="text-sm font-semibold text-gray-700">URL del Logo</label>
-                        <input
-                            id="logoUrl"
-                            name="logoUrl"
-                            value={data.logoUrl}
-                            onChange={onChange}
-                            placeholder="https://..."
-                            className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 outline-none"
-                        />
+                        <label className="text-sm font-semibold text-gray-700">Logo del Establecimiento</label>
+                        <div className="flex items-center gap-4">
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition-all text-sm font-medium text-gray-600"
+                            >
+                                {uploading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Upload className="w-4 h-4" />
+                                )}
+                                {data.logoUrl ? 'Cambiar Logo' : 'Subir Imagen'}
+                            </button>
+                            {data.logoUrl && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData((p: any) => ({ ...p, logoUrl: '' }))}
+                                    className="text-xs text-red-500 hover:underline"
+                                >
+                                    Eliminar
+                                </button>
+                            )}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept="image/*"
+                                className="hidden"
+                            />
+                        </div>
+                        <p className="text-[10px] text-gray-400">Recomendado: PNG o SVG transparente, máx 2MB.</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
