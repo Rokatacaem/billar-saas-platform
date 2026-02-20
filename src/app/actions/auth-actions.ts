@@ -34,7 +34,10 @@ export async function authenticate(prevState: string | undefined, formData: Form
             redirect: false,
         });
 
-        console.log("✅ [AUTH-ACTION] signIn finished, result:", result);
+        console.log("✅ [AUTH-ACTION] signIn finished, result:", JSON.stringify(result));
+
+        // En NextAuth v5, si hay un error con redirect:false, el resultado suele ser undefined 
+        // o un objeto con error. Si signIn falló, no deberíamos redirigir.
     } catch (error) {
         if (error instanceof AuthError) {
             console.error("❌ [AUTH-ACTION] AuthError:", error.type, error.message);
