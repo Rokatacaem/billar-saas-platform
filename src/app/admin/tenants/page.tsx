@@ -12,14 +12,8 @@ export default async function AdminPage() {
             }
         }
     });
-
     // 3. Mock DB Metrics (In real scenario, use pg_stat_activity query)
-    const connections = Math.floor(Math.random() * 20) + 5;
-    const dbMetrics = {
-        connections,
-        totalSizeMB: 450, // Mock
-        status: 'HEALTHY'
-    };
+    // Removed unstable Math.random during render
 
     return (
         <div className="space-y-6">

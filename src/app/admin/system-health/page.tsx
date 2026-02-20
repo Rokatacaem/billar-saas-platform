@@ -32,8 +32,8 @@ export default async function SystemHealthPage() {
 
     // 3. Mock DB Metrics (In real scenario, use pg_stat_activity query)
     const dbMetrics = {
-        connections: Math.floor(Math.random() * 20) + 5,
-        totalSizeMB: 450, // Mock
+        connections: 12, // Stable mock for build
+        totalSizeMB: 450,
         status: 'HEALTHY'
     };
 
