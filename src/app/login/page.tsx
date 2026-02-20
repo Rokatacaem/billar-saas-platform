@@ -21,18 +21,18 @@ export default async function LoginPage() {
     let tenantName, logoUrl, primaryColor, bgColor = '#f3f4f6'; // bg-gray-100 default
 
     if (subdomain && subdomain !== 'www') {
-        const tenant = await prisma.tenant.findUnique({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tenant = await (prisma.tenant as any).findUnique({
             where: { slug: subdomain },
-            // @ts-expect-error Prisma Client generation pending for uiConfig
             select: { name: true, logoUrl: true, primaryColor: true, uiConfig: true }
         });
 
         if (tenant) {
-            tenantName = tenant.name;
-            logoUrl = tenant.logoUrl;
-            primaryColor = tenant.primaryColor;
+            tenantName = tenant.name as string | null;
+            logoUrl = tenant.logoUrl as string | null;
+            primaryColor = tenant.primaryColor as string | null;
             // Extract the background from JSON safely
-            bgColor = (tenant.uiConfig as { backgroundColor?: string })?.backgroundColor || '#ffffff';
+            bgColor = (tenant.uiConfig as { backgroundColor?: string } | null)?.backgroundColor || '#ffffff';
         }
     }
 
@@ -43,9 +43,9 @@ export default async function LoginPage() {
             style={{ backgroundColor: bgColor }}
         >
             <LoginForm
-                tenantName={tenantName}
-                logoUrl={logoUrl || undefined}
-                primaryColor={primaryColor || undefined}
+                tenantName={tenantName ?? undefined}
+                logoUrl={logoUrl ?? undefined}
+                primaryColor={primaryColor ?? undefined}
             />
         </div>
     );
