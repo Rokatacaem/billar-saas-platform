@@ -98,8 +98,10 @@ model Tenant {
   serviceRequests ServiceRequest[]
   paymentRecords  PaymentRecord[]
   systemLogs      SystemLog[]
-  maintenanceLogs MaintenanceLog[] @relation("TenantMaintenance")
-  stockMovements  StockMovement[]
+  maintenanceLogs    MaintenanceLog[] @relation("TenantMaintenance")
+  stockMovements     StockMovement[]
+  membershipPlans    MembershipPlan[]
+  membershipPayments MembershipPayment[]
   // generatedReports GeneratedReport[] // TEMP: Disabled pending schema validator fix
 }
 
