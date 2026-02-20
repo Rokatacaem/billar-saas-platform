@@ -21,7 +21,6 @@ export async function updateTenantAppearance(tenantId: string, presetId: string)
                 settings: {
                     backgroundColor: preset.uiConfig.backgroundColor,
                 },
-                // @ts-expect-error Prisma Client generation pending
                 uiConfig: preset.uiConfig
             }
         });

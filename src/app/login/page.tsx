@@ -23,7 +23,6 @@ export default async function LoginPage() {
     if (subdomain && subdomain !== 'www') {
         const tenant = await prisma.tenant.findUnique({
             where: { slug: subdomain },
-            // @ts-expect-error Prisma Client generation pending for uiConfig
             select: { name: true, logoUrl: true, primaryColor: true, uiConfig: true }
         });
 
@@ -32,8 +31,7 @@ export default async function LoginPage() {
             logoUrl = tenant.logoUrl;
             primaryColor = tenant.primaryColor;
             // Extract the background from JSON safely
-            // @ts-expect-error Prisma config
-            bgColor = tenant.uiConfig?.backgroundColor || '#ffffff';
+            bgColor = (tenant.uiConfig as { backgroundColor?: string })?.backgroundColor || '#ffffff';
         }
     }
 

@@ -17,7 +17,6 @@ export default async function AppearancePage({ params }: { params: { slug: strin
 
     if (!tenant) redirect('/login');
 
-    // @ts-expect-error Prisma client is not updated yet with uiConfig
     const currentUiConfig = tenant.uiConfig || {};
 
     return (

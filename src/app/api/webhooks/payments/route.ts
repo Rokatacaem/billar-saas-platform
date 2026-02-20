@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
                 nextDate.setMonth(nextDate.getMonth() + 1);
             }
 
-            // @ts-expect-error
             await prisma.member.update({
                 where: { id: member.id },
                 data: {
@@ -111,14 +110,13 @@ export async function POST(req: NextRequest) {
                 const taxBreakdown = await calculateTaxBreakdown(usageSession.amountCharged, usageSession.taxRate);
                 const dteRes = await billingProvider.emitDocument({
                     tenantId: usageSession.tenantId,
-                    // @ts-expect-error
-                    tipoDTE: usageSession.tipoDTE || 39,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    tipoDTE: (usageSession as any).tipoDTE || 39,
                     montoNeto: taxBreakdown.netAmount,
                     montoIva: taxBreakdown.taxAmount,
                     montoTotal: taxBreakdown.grossAmount
                 });
 
-                // @ts-expect-error
                 await prisma.usageLog.update({
                     where: { id: sessionId },
                     data: {
