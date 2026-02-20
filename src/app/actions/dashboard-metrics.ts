@@ -16,8 +16,8 @@ export async function getClubMembershipMetrics(tenantId: string) {
         });
 
         const active = members.filter(m => m.subscriptionStatus === 'ACTIVE').length;
-        const expired = members.filter(m => m.subscriptionStatus === 'EXPIRED').length;
-        const pending = members.filter(m => m.subscriptionStatus === 'PENDING_PAYMENT').length;
+        const expired = members.filter(m => m.subscriptionStatus === 'CANCELLED').length;
+        const pending = members.filter(m => m.subscriptionStatus === 'IN_ARREARS').length;
         const total = members.length;
 
         return {
