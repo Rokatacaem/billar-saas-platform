@@ -190,3 +190,45 @@ export async function updateTenantPlan(tenantId: string, plan: "BASIC" | "PRO" |
         throw new Error("Failed to update plan");
     }
 }
+export async function updateBasicTenantInfo(tenantId: string, formData: FormData) {
+    // 🛡️ SECURITY: RBAC check
+    const session = await auth();
+    if (!session || session.user.role !== 'SUPER_ADMIN') {
+        throw new Error("No autorizado");
+    }
+
+    const name = sanitizeString(formData.get("name") as string);
+    const type = formData.get("type") as "CLUB" | "BUSINESS";
+    const primaryColor = formData.get("primaryColor") as string;
+    const secondaryColor = formData.get("secondaryColor") as string;
+    const backgroundColor = formData.get("backgroundColor") as string;
+    const logoUrl = formData.get("logoUrl") as string;
+
+    try {
+        await prisma.tenant.update({
+            where: { id: tenantId },
+            data: {
+                name,
+                type,
+                primaryColor,
+                secondaryColor,
+                backgroundColor,
+                logoUrl,
+            }
+        });
+
+        // 🛡️ SECURITY: Log edit
+        await logSecurityEvent({
+            type: 'TENANT_UPDATED',
+            severity: ThreatLevel.LOW,
+            message: `Tenant updated: ${tenantId}`,
+            details: { name, type }
+        });
+
+        revalidatePath('/admin/tenants');
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to update tenant:", error);
+        throw new Error("Error al actualizar el club");
+    }
+}
