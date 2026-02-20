@@ -2,16 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { EditTenantForm } from "./EditTenantForm";
 
-export default async function EditTenantPage({ params }: { params: { id: string } }) {
-    const tenantId = params.id;
+export default async function EditTenantPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id: tenantId } = await params;
 
-    const tenant = await prisma.tenant.findUnique({
+    const tenantRaw = await prisma.tenant.findUnique({
         where: { id: tenantId },
     });
 
-    if (!tenant) {
+    if (!tenantRaw) {
         notFound();
     }
+
+    // 🛡️ SECURITY: Serialize to avoid Date object issues in Client Components
+    const tenant = JSON.parse(JSON.stringify(tenantRaw));
 
     return (
         <div className="space-y-6">
