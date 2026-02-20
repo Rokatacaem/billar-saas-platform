@@ -15,10 +15,12 @@ export default auth(async (req) => {
     let subdominio = "";
     if (hostname.endsWith(rootDomain)) {
         subdominio = hostname.replace(`.${rootDomain}`, "").replace(rootDomain, "");
-    } else {
-        // Fallback para dominios que no coinciden exactamente (ej. .vercel.app)
+    } else if (hostname.endsWith(".vercel.app")) {
+        // Soporte para dominios de Vercel (ej. akapoolco.billar-saas.vercel.app)
         const parts = hostname.split('.');
-        if (parts.length > 2) subdominio = parts[0];
+        if (parts.length > 3) {
+            subdominio = parts[0];
+        }
     }
 
     const isTenantRoute = subdominio.length > 0 && subdominio !== hostname && subdominio !== "www";
