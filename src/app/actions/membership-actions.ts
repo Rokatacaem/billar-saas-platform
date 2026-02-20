@@ -77,7 +77,7 @@ export async function createMembershipPayment(memberId: string) {
             const rate = tenantConfig?.taxRate || 0.19;
 
             // Extraemos el IVA del precio bruto del plan
-            const breakdown = calculateTaxBreakdown(plan.price, rate);
+            const breakdown = await calculateTaxBreakdown(plan.price, rate);
             subtotal = breakdown.netAmount;
             taxAmount = breakdown.taxAmount;
             dteType = DTE_AFECTO;

@@ -78,11 +78,11 @@ export async function getTaxConfig(tenantId: string): Promise<TaxConfig> {
  * @param grossAmount - Precio al público (IVA incluido) — lo que paga el cliente
  * @param taxRate     - Tasa decimal (e.g. 0.19 = 19%)
  */
-export function calculateTaxBreakdown(grossAmount: number, taxRate: number): {
+export async function calculateTaxBreakdown(grossAmount: number, taxRate: number): Promise<{
     netAmount: number;    // Neto contable (para Z-Report y SII)
     taxAmount: number;    // IVA a declarar
     grossAmount: number;  // Precio al público (amountCharged)
-} {
+}> {
     if (taxRate <= 0) {
         return { netAmount: grossAmount, taxAmount: 0, grossAmount };
     }

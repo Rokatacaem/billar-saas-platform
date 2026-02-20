@@ -80,7 +80,7 @@ export async function toggleTableStatus(tableId: string, currentStatus: string, 
 
                     // ─── Tax Breakdown (Sentinel-validated) ───────────────────────
                     const taxConfig = await getTaxConfig(tenantId);
-                    const taxBreakdown = calculateTaxBreakdown(subtotal, taxConfig.rate);
+                    const taxBreakdown = await calculateTaxBreakdown(subtotal, taxConfig.rate);
                     amountCharged = taxBreakdown.grossAmount;
 
                     const tipoDTE = dteData?.tipoDTE || 39;

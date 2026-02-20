@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
             // Si la mesa no tenía un DTE ya generado (ej. lo generó en toggleTableStatus), lo emitimos aquí como fallback
             // @ts-expect-error
             if (!usageSession.folioDTE && usageSession.amountCharged > 0) {
-                const taxBreakdown = calculateTaxBreakdown(usageSession.amountCharged, usageSession.taxRate);
+                const taxBreakdown = await calculateTaxBreakdown(usageSession.amountCharged, usageSession.taxRate);
                 const dteRes = await billingProvider.emitDocument({
                     tenantId: usageSession.tenantId,
                     // @ts-expect-error
