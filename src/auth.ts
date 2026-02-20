@@ -1,8 +1,6 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
-import { prismaBase } from "@/lib/prisma"; // Use Base client to avoid circular loop
-// import { prismaBase } from "@/lib/prisma"; // Use Base client to avoid circular loop // This line is removed as per the change
 import { authConfig } from "./auth.config";
 import {
     verifyPassword,
