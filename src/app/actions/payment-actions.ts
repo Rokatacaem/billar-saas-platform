@@ -178,19 +178,15 @@ export async function createMemberCheckoutSession(memberId: string) {
     try {
         const member = await prisma.member.findUnique({
             where: { id: memberId, tenantId },
-            // @ts-expect-error - Prisma client extension dynamic typing issue
             include: { membershipPlan: true }
         });
 
         if (!member) return { success: false, error: 'Socio no encontrado' };
-        // @ts-expect-error - Prisma client doesn't infer included relation properly here
         if (!member.membershipPlan) return { success: false, error: 'Socio no tiene plan asignado' };
 
-        // @ts-expect-error - Inference issue
         const plan = member.membershipPlan;
 
         // 1. Crear el Registro de Pago Pendiente
-        // @ts-expect-error - Prisma dynamic tenant extension issue
         const pendingPayment = await prisma.membershipPayment.create({
             data: {
                 tenantId,
@@ -215,7 +211,6 @@ export async function createMemberCheckoutSession(memberId: string) {
         }
 
         // 3. Vincular el PaymentIntentID al registro local
-        // @ts-expect-error - Prisma dynamic tenant extension issue
         await prisma.membershipPayment.update({
             where: { id: pendingPayment.id },
             data: { transactionId: intentResponse.transactionId }

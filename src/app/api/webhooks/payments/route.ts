@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
         if (ref.startsWith('MEM_')) {
             const membershipPaymentId = ref.replace('MEM_', '');
 
-            // @ts-expect-error
             const payment = await prisma.membershipPayment.findUnique({
                 where: { id: membershipPaymentId },
                 include: { member: { include: { membershipPlan: true } } }
@@ -45,7 +44,6 @@ export async function POST(req: NextRequest) {
             if (!payment) return NextResponse.json({ error: 'Pago Membresía no encontrado' }, { status: 404 });
 
             // 1. Marcar el Pago como PAID
-            // @ts-expect-error
             await prisma.membershipPayment.update({
                 where: { id: membershipPaymentId },
                 data: { status: 'PAID' }
@@ -105,7 +103,6 @@ export async function POST(req: NextRequest) {
 
             // 3. Emitir el DTE automáticamente (Doble Integración Hitos)
             // Si la mesa no tenía un DTE ya generado (ej. lo generó en toggleTableStatus), lo emitimos aquí como fallback
-            // @ts-expect-error
             if (!usageSession.folioDTE && usageSession.amountCharged > 0) {
                 const taxBreakdown = await calculateTaxBreakdown(usageSession.amountCharged, usageSession.taxRate);
                 const dteRes = await billingProvider.emitDocument({
