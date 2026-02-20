@@ -9,6 +9,7 @@ export async function GET() {
         env: {
             DATABASE_URL: process.env.DATABASE_URL ? "PRESENT (HIDDEN)" : "MISSING",
             AUTH_SECRET: process.env.AUTH_SECRET ? "PRESENT (HIDDEN)" : "MISSING",
+            NEXT_PUBLIC_ROOT_DOMAIN: process.env.NEXT_PUBLIC_ROOT_DOMAIN || "MISSING (DEFAULTED TO LOCALHOST)",
             NODE_ENV: process.env.NODE_ENV,
         },
         db: {
