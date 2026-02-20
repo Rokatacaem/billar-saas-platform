@@ -32,6 +32,7 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
             primaryColor: true,
             secondaryColor: true,
             settings: true,
+            // @ts-expect-error Prisma client is not updated yet with uiConfig
             uiConfig: true,
             logoUrl: true
         }
@@ -44,7 +45,8 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
         secondaryColor: tenant.secondaryColor,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         backgroundColor: (tenant.settings as any)?.backgroundColor || '#ffffff',
-        uiConfig: tenant.uiConfig
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        uiConfig: tenant.uiConfig as any
     };
 
     return (

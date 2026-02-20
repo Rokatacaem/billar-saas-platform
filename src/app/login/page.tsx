@@ -23,6 +23,7 @@ export default async function LoginPage() {
     if (subdomain && subdomain !== 'www') {
         const tenant = await prisma.tenant.findUnique({
             where: { slug: subdomain },
+            // @ts-expect-error Prisma Client generation pending for uiConfig
             select: { name: true, logoUrl: true, primaryColor: true, uiConfig: true }
         });
 

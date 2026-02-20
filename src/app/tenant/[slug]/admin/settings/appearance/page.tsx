@@ -11,6 +11,7 @@ export default async function AppearancePage({ params }: { params: { slug: strin
         where: { id: session.user.tenantId },
         select: {
             id: true,
+            // @ts-expect-error Prisma client is not updated yet with uiConfig
             uiConfig: true
         },
     });
