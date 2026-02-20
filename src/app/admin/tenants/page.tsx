@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
     const tenants = await prisma.tenant.findMany({
         orderBy: { createdAt: 'desc' },
@@ -10,6 +12,14 @@ export default async function AdminPage() {
             }
         }
     });
+
+    // 3. Mock DB Metrics (In real scenario, use pg_stat_activity query)
+    const connections = Math.floor(Math.random() * 20) + 5;
+    const dbMetrics = {
+        connections,
+        totalSizeMB: 450, // Mock
+        status: 'HEALTHY'
+    };
 
     return (
         <div className="space-y-6">

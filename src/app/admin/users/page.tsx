@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { es } from "date-fns/locale";
+
+export const dynamic = 'force-dynamic';
 
 export default async function GlobalUsersPage() {
     const users = await prisma.user.findMany({

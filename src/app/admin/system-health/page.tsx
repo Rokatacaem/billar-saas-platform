@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
+export const dynamic = 'force-dynamic';
+
 export default async function SystemHealthPage() {
     // 1. Fetch Tenants with Health Data
     const tenants = await prisma.tenant.findMany({
