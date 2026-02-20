@@ -111,7 +111,9 @@ export default function LandingPageClient({ location, pricingPlans }: LandingPag
                                     </div>
                                     <ul className="features-list">
                                         {plan.features.map(feature => (
-                                            <li key={feature}>✓ {feature}</li>
+                                            <li key={feature}>
+                                                <span className="feature-check">✓</span> {feature}
+                                            </li>
                                         ))}
                                     </ul>
                                     <a href="#solicitar-demo" className="btn-pricing">
@@ -289,9 +291,10 @@ export default function LandingPageClient({ location, pricingPlans }: LandingPag
 
                 .pricing-subtitle {
                     text-align: center;
-                    color: #666;
+                    color: #444;
                     font-size: 1.1rem;
                     margin-bottom: 3rem;
+                    font-weight: 500;
                 }
 
                 .pricing-grid {
@@ -303,13 +306,14 @@ export default function LandingPageClient({ location, pricingPlans }: LandingPag
                 }
 
                 .pricing-card {
-                    background: #f8f9fa;
+                    background: #ffffff;
                     padding: 2.5rem 2rem;
                     border-radius: 16px;
                     text-align: center;
                     position: relative;
-                    border: 2px solid #e9ecef;
+                    border: 2px solid #e2e8f0;
                     transition: transform 0.3s, box-shadow 0.3s;
+                    color: #1e293b;
                 }
 
                 .pricing-card:hover {
@@ -351,7 +355,7 @@ export default function LandingPageClient({ location, pricingPlans }: LandingPag
 
                 .period {
                     font-size: 1rem;
-                    font-weight: 400;
+                    font-weight: 500;
                     opacity: 0.8;
                 }
 
@@ -364,7 +368,22 @@ export default function LandingPageClient({ location, pricingPlans }: LandingPag
 
                 .features-list li {
                     padding: 0.5rem 0;
-                    color: inherit;
+                    color: #334155;
+                    font-weight: 500;
+                }
+
+                .pricing-card.featured .features-list li {
+                    color: white;
+                }
+
+                .feature-check {
+                    color: #2d7a50;
+                    font-weight: 800;
+                    margin-right: 0.5rem;
+                }
+
+                .pricing-card.featured .feature-check {
+                    color: #fbbf24;
                 }
 
                 .btn-pricing {

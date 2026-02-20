@@ -63,9 +63,15 @@ export default async function AdminPage() {
                                     </div>
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
-                                    <a href={`http://${tenant.slug}.localhost:3000`} target="_blank" className="text-indigo-600 hover:text-indigo-900 hover:underline">
-                                        {tenant.slug}.localhost:3000
-                                    </a>
+                                    {(() => {
+                                        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
+                                        const tenantUrl = `http://${tenant.slug}.${rootDomain}`;
+                                        return (
+                                            <a href={tenantUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 hover:underline">
+                                                {tenant.slug}.{rootDomain}
+                                            </a>
+                                        );
+                                    })()}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
                                     <div className="flex flex-col">
