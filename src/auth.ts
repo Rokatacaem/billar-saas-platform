@@ -9,12 +9,7 @@ import {
     hashPassword
 } from "@/lib/security/encryption";
 
-// Define prismaClientSingleton and prismaBase here as per the change
-import { PrismaClient } from "@prisma/client";
-
-const prismaClientSingleton = () => {
-    return new PrismaClient();
-};
+import { prismaClientSingleton } from "@/lib/prisma-factory";
 
 declare global {
     var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>;
