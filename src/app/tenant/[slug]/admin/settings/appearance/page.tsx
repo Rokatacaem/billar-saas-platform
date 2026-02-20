@@ -17,7 +17,7 @@ export default async function AppearancePage({ params }: { params: { slug: strin
 
     if (!tenant) redirect('/login');
 
-    const currentUiConfig = tenant.uiConfig || {};
+    const currentUiConfig = (tenant.uiConfig as { id?: string }) || {};
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
