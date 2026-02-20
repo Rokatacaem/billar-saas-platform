@@ -29,7 +29,7 @@ export default function LandingPageClient({ location, pricingPlans }: LandingPag
                     <p className="hero-subtitle">
                         Gestión, Analítica y Fidelización para Clubes y Federaciones
                     </p>
-                    <p className="hero-location">
+                    <p className="hero-location font-semibold">
                         🌍 Detectado: {location.countryName} • {location.currency}
                     </p>
                     <div className="hero-cta">

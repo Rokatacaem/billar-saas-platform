@@ -54,7 +54,15 @@ export async function authenticate(prevState: string | undefined, formData: Form
     }
 
     // Si llegamos aquí, la sesión debería estar creada. Redirigimos manualmente.
-    console.log("🏁 [AUTH-ACTION] Redirecting manually to /");
+    console.log("🏁 [AUTH-ACTION] Redirecting manually...");
+    const { auth } = await import("@/auth");
+    const session = await auth();
+
     const { redirect } = await import("next/navigation");
-    redirect("/");
+
+    if (session?.user?.role === 'SUPER_ADMIN') {
+        redirect("/admin");
+    } else {
+        redirect("/");
+    }
 }
