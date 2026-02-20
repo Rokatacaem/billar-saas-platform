@@ -49,7 +49,7 @@ export default async function MemberHistoryPage({ params }: MemberHistoryProps) 
                 <p className="text-sm text-gray-400 font-medium">{tenant.name} • {slug.toUpperCase()}</p>
 
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
-                    {member.membershipStatus === 'ACTIVO' ? (
+                    {member.subscriptionStatus === 'ACTIVE' ? (
                         <div className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-xs font-black uppercase tracking-widest shadow-sm">
                             Socio Activo
                         </div>

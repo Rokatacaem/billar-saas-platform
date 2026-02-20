@@ -23,7 +23,7 @@ export interface PricingInput {
     };
     member?: {
         category: MemberCategory;
-        membershipStatus?: string | null;
+        subscriptionStatus?: string | null;
         discount: number;
     };
     durationMinutes: number;
@@ -65,11 +65,11 @@ export function calculateTotal(input: PricingInput): PricingResult {
         if (tenant.businessModel === 'CLUB_SOCIOS') {
             // 🏛️ MODELO CLUB: Descuento solo si membership ACTIVE
             if (member.category === 'SOCIO') {
-                if (member.membershipStatus === 'ACTIVE') {
+                if (member.subscriptionStatus === 'ACTIVE') {
                     discountPercentage = member.discount;
                     discountReason = 'SOCIO membership active';
                 } else {
-                    warnings.push(`⚠️ SOCIO membership NOT ACTIVE (status: ${member.membershipStatus || 'undefined'}). Applying GENERAL rate.`);
+                    warnings.push(`⚠️ SOCIO membership NOT ACTIVE (status: ${member.subscriptionStatus || 'undefined'}). Applying GENERAL rate.`);
                     discountPercentage = 0;
                     discountReason = 'SOCIO membership expired';
                 }

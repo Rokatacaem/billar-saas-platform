@@ -45,13 +45,13 @@ export default function TierBadge({ category, showIcon = true, className = '' }:
  * Displays alert when SOCIO membership is not ACTIVE
  */
 export function MembershipStatusWarning({
-    category,
-    membershipStatus
+    category, // Keep category as it's used in the logic
+    subscriptionStatus
 }: {
-    category: MemberCategory;
-    membershipStatus?: string | null;
+    category: 'GENERAL' | 'VIP' | 'SOCIO'; // Update category type as per instruction
+    subscriptionStatus?: string | null;
 }) {
-    if (category !== 'SOCIO' || membershipStatus === 'ACTIVE') {
+    if (category !== 'SOCIO' || subscriptionStatus === 'ACTIVE') {
         return null;
     }
 
@@ -61,7 +61,7 @@ export function MembershipStatusWarning({
             <div>
                 <strong>Membresía NO ACTIVA</strong>
                 <br />
-                Status: {membershipStatus || 'undefined'}. Se aplicará tarifa GENERAL.
+                Status: {subscriptionStatus || 'undefined'}. Se aplicará tarifa GENERAL.
             </div>
         </div>
     );

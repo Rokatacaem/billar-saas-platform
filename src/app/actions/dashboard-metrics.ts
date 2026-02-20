@@ -15,9 +15,9 @@ export async function getClubMembershipMetrics(tenantId: string) {
             where: { tenantId, category: 'SOCIO' }
         });
 
-        const active = members.filter(m => m.membershipStatus === 'ACTIVE').length;
-        const expired = members.filter(m => m.membershipStatus === 'EXPIRED').length;
-        const pending = members.filter(m => m.membershipStatus === 'PENDING_PAYMENT').length;
+        const active = members.filter(m => m.subscriptionStatus === 'ACTIVE').length;
+        const expired = members.filter(m => m.subscriptionStatus === 'EXPIRED').length;
+        const pending = members.filter(m => m.subscriptionStatus === 'PENDING_PAYMENT').length;
         const total = members.length;
 
         return {
@@ -93,7 +93,7 @@ export async function getMemberAttendanceFrequency(tenantId: string) {
             name: member.name,
             visitsLast30Days: member.usageLogs.length,
             averageVisitsPerMonth: member.usageLogs.length,
-            status: member.membershipStatus
+            status: member.subscriptionStatus
         }));
 
         // Sort by visits descending

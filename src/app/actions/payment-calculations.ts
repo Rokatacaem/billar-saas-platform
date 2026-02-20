@@ -46,7 +46,7 @@ export async function processPayment(usageLogId: string, userId: string) {
             },
             member: usageLog.member ? {
                 category: usageLog.member.category,
-                membershipStatus: usageLog.member.membershipStatus,
+                subscriptionStatus: usageLog.member.subscriptionStatus,
                 discount: usageLog.member.discount
             } : undefined,
             durationMinutes: usageLog.durationMinutes || 0,
@@ -64,7 +64,7 @@ export async function processPayment(usageLogId: string, userId: string) {
                     tenantId: usageLog.tenantId,
                     memberId: usageLog.memberId,
                     memberCategory: usageLog.member?.category,
-                    membershipStatus: usageLog.member?.membershipStatus
+                    subscriptionStatus: usageLog.member?.subscriptionStatus
                 }
             });
         }

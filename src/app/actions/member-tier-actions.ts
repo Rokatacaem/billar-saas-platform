@@ -51,8 +51,8 @@ export async function upgradeMemberTier(
             where: { id: memberId },
             data: {
                 category: newCategory,
-                // Si se hace VIP o SOCIO, resetear membershipStatus si es necesario
-                ...(newCategory === 'SOCIO' && { membershipStatus: 'ACTIVE' })
+                // Si se hace VIP o SOCIO, resetear subscriptionStatus si es necesario
+                ...(newCategory === 'SOCIO' && { subscriptionStatus: 'ACTIVE' })
             }
         });
 
