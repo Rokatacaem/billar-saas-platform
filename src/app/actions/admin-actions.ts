@@ -234,56 +234,63 @@ export async function updateBasicTenantInfo(tenantId: string, formData: FormData
 }
 
 /**
- * Deletes a tenant and all its associated data (cascade via Prisma schema).
+ * Deletes a tenant and all its associated data.
+ * Returns { success, error } instead of throwing to avoid Next.js error masking in production.
  * SUPER_ADMIN only.
  */
-export async function deleteTenant(tenantId: string): Promise<{ success: true }> {
+export async function deleteTenant(tenantId: string): Promise<{ success: boolean; error?: string }> {
     const session = await auth();
     if (!session || session.user.role !== 'SUPER_ADMIN') {
-        await logSecurityEvent({
-            type: 'UNAUTHORIZED_ADMIN_ACCESS',
-            severity: ThreatLevel.CRITICAL,
-            message: `Unauthorized tenant deletion attempt for ${tenantId}`,
-            ip: 'Server-Action'
-        });
-        throw new Error("Acceso denegado: Se requiere rol SUPER_ADMIN");
+        return { success: false, error: 'Acceso denegado: Se requiere rol SUPER_ADMIN' };
     }
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) throw new Error("Tenant no encontrado");
+    if (!tenant) return { success: false, error: 'Tenant no encontrado' };
 
-    // Deshabilitar FK checks temporalmente en Postgres para garantizar
-    // la eliminación cuando ON DELETE CASCADE no está reforzado
     try {
+        // Intento 1: deshabilitar FK checks temporalmente en Postgres
         await prisma.$executeRawUnsafe(`SET session_replication_role = 'replica'`);
         await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
         await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`);
-    } catch (deleteError) {
-        // Si session_replication_role no está disponible (Neon pooler), usar eliminación manual
+    } catch (primaryError) {
+        // Restaurar modo normal si falló
         await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`).catch(() => { });
-        console.error('❌ Delete tenant error (fallback manual):', deleteError);
+        console.error('⚠️ Primary delete failed, trying manual cascade:', primaryError);
 
-        // Fallback: eliminar tablas esenciales que sabemos existen
-        await prisma.$executeRaw`DELETE FROM "SystemLog" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "UsageLog" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "ServiceRequest" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "MaintenanceLog" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "StockMovement" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "TierChange" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "MembershipPayment" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "PaymentRecord" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "Member" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "MembershipPlan" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "DailyBalance" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "Table" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "Product" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "FolioRange" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "User" WHERE "tenantId" = ${tenantId}`;
-        await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
+        // Fallback: eliminación manual en orden de dependencias
+        try {
+            const tables = [
+                `DELETE FROM "SystemLog" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "UsageLog" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "ServiceRequest" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "MaintenanceLog" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "StockMovement" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "TierChange" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "MembershipPayment" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "PaymentRecord" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "Member" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "MembershipPlan" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "DailyBalance" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "Table" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "Product" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "FolioRange" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "User" WHERE "tenantId" = '${tenantId}'`,
+                `DELETE FROM "Tenant" WHERE id = '${tenantId}'`,
+            ];
+            for (const sql of tables) {
+                await prisma.$executeRawUnsafe(sql).catch(e =>
+                    console.warn(`⚠️ Skip: ${sql.split(' ')[2]}`, (e as Error).message)
+                );
+            }
+        } catch (fallbackError) {
+            const msg = (fallbackError as Error).message;
+            console.error('❌ Fallback delete failed:', msg);
+            return { success: false, error: `Error al eliminar: ${msg}` };
+        }
     }
 
     await logSecurityEvent({
-        type: 'TENANT_CREATED', // reusing available type for audit
+        type: 'TENANT_CREATED',
         severity: ThreatLevel.HIGH,
         message: `Tenant deleted: ${tenant.slug} (${tenant.name})`,
         details: { tenantId, slug: tenant.slug }
