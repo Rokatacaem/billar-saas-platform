@@ -296,7 +296,7 @@ export async function deleteTenant(tenantId: string): Promise<{ success: boolean
         details: { tenantId, slug: tenant.slug }
     });
 
-    revalidatePath('/admin/tenants');
-    revalidatePath('/admin');
+    // Nota: No usar revalidatePath aquí — provoca re-render de /admin/billing que puede crashear.
+    // El cliente usa router.refresh() para actualizar la lista de tenants.
     return { success: true as const };
 }
