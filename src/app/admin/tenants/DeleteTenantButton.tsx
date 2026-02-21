@@ -79,8 +79,12 @@ export default function DeleteTenantButton({ tenantId, tenantName }: DeleteTenan
 
                         {/* Error message */}
                         {error && (
-                            <div className="bg-red-900/30 border border-red-700 rounded-lg p-3">
-                                <p className="text-red-300 text-xs">{error}</p>
+                            <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 overflow-hidden">
+                                <p className="text-red-300 text-xs break-words">
+                                    ⚠️ {error.includes('Server Components') || error.includes('omitted')
+                                        ? 'Error del servidor al eliminar. Intenta nuevamente o revisa los logs de Vercel.'
+                                        : error}
+                                </p>
                             </div>
                         )}
 
