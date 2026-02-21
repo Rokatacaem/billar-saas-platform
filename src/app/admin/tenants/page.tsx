@@ -65,8 +65,17 @@ export default async function AdminPage() {
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
                                     {(() => {
-                                        const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
-                                        const tenantUrl = `http://${tenant.slug}.${rootDomain}`;
+                                        // Usa NEXT_PUBLIC_ROOT_DOMAIN si existe.
+                                        // Si no existe, pero estamos en Vercel, armamos el subdominio sobre el dominio por defecto de Vercel.
+                                        let rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
+                                        if (!rootDomain) {
+                                            rootDomain = process.env.NEXT_PUBLIC_VERCEL_URL ? 'billar-saas-platform.vercel.app' : 'localhost:3000';
+                                        }
+
+                                        // Determine protocol based on environment
+                                        const protocol = rootDomain.includes('localhost') ? 'http' : 'https';
+                                        const tenantUrl = `${protocol}://${tenant.slug}.${rootDomain}`;
+
                                         return (
                                             <a href={tenantUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 hover:underline">
                                                 {tenant.slug}.{rootDomain}
