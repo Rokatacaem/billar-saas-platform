@@ -53,14 +53,18 @@ export async function authenticate(prevState: string | undefined, formData: Form
         return `Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`;
     }
 
-    // Si llegamos aquí, la sesión debería estar creada. Redirigimos manualmente.
+    // Si llegamos aquí, la sesión debería estar registrada en cookies pero no instanciable inmediatamente.
+    // Buscamos el rol directamente de la DB para hacer la redirección correcta.
     console.log("🏁 [AUTH-ACTION] Redirecting manually...");
-    const { auth } = await import("@/auth");
-    const session = await auth();
-
+    const { prismaBase } = await import("@/lib/prisma");
     const { redirect } = await import("next/navigation");
 
-    if (session?.user?.role === 'SUPER_ADMIN') {
+    const user = await prismaBase.user.findUnique({
+        where: { email },
+        select: { role: true }
+    });
+
+    if (user?.role === 'SUPER_ADMIN') {
         redirect("/admin");
     } else {
         redirect("/");
