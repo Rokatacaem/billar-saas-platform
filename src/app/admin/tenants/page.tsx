@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import DeleteTenantButton from "./DeleteTenantButton";
 
 export const dynamic = 'force-dynamic';
 
@@ -91,7 +92,11 @@ export default async function AdminPage() {
                                     {new Date(tenant.createdAt).toLocaleDateString()}
                                 </td>
                                 <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                    <Link href={`/admin/tenants/${tenant.id}`} className="text-indigo-600 hover:text-indigo-900">Editar</Link>
+                                    <div className="flex items-center justify-end gap-3">
+                                        <Link href={`/admin/tenants/${tenant.id}`} className="text-indigo-600 hover:text-indigo-900">Editar</Link>
+                                        <span className="text-gray-300">|</span>
+                                        <DeleteTenantButton tenantId={tenant.id} tenantName={tenant.name} />
+                                    </div>
                                 </td>
                             </tr>
                         ))}

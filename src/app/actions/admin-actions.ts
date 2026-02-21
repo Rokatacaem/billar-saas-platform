@@ -232,3 +232,35 @@ export async function updateBasicTenantInfo(tenantId: string, formData: FormData
         throw new Error("Error al actualizar el club");
     }
 }
+
+/**
+ * Deletes a tenant and all its associated data (cascade via Prisma schema).
+ * SUPER_ADMIN only.
+ */
+export async function deleteTenant(tenantId: string): Promise<{ success: true }> {
+    const session = await auth();
+    if (!session || session.user.role !== 'SUPER_ADMIN') {
+        await logSecurityEvent({
+            type: 'UNAUTHORIZED_ADMIN_ACCESS',
+            severity: ThreatLevel.CRITICAL,
+            message: `Unauthorized tenant deletion attempt for ${tenantId}`,
+            ip: 'Server-Action'
+        });
+        throw new Error("Acceso denegado: Se requiere rol SUPER_ADMIN");
+    }
+
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) throw new Error("Tenant no encontrado");
+
+    await prisma.tenant.delete({ where: { id: tenantId } });
+
+    await logSecurityEvent({
+        type: 'TENANT_CREATED', // reusing available type for audit
+        severity: ThreatLevel.HIGH,
+        message: `Tenant deleted: ${tenant.slug} (${tenant.name})`,
+        details: { tenantId, slug: tenant.slug }
+    });
+
+    revalidatePath('/admin/tenants');
+    return { success: true };
+}
