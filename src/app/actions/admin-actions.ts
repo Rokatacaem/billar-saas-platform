@@ -252,7 +252,36 @@ export async function deleteTenant(tenantId: string): Promise<{ success: true }>
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new Error("Tenant no encontrado");
 
-    await prisma.tenant.delete({ where: { id: tenantId } });
+    // Cascade manual para asegurar compatibilidad con Neon/Postgres
+    // (el ON DELETE CASCADE del schema puede no estar aplicado si se usó db push)
+    await prisma.$transaction(async (tx) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const db = tx as any;
+        // 1. Eliminar registros de TierChange (depende de Member)
+        await db.tierChange.deleteMany({ where: { tenantId } });
+        // 2. Eliminar MembershipPayments (depende de Member)
+        await db.membershipPayment.deleteMany({ where: { tenantId } });
+        // 3. Eliminar UsageLogs (depende de Table y Member)
+        await db.usageLog.deleteMany({ where: { tenantId } });
+        // 4. Eliminar ServiceRequests (depende de Table)
+        await db.serviceRequest.deleteMany({ where: { tenantId } });
+        // 5. Eliminar MaintenanceLogs (depende de Table)
+        await db.maintenanceLog.deleteMany({ where: { tenantId } });
+        // 6. Eliminar Members (depende de Tenant y MembershipPlan)
+        await db.member.deleteMany({ where: { tenantId } });
+        // 7. Eliminar MembershipPlans (depende de Tenant, referenciado por Member)
+        await db.membershipPlan.deleteMany({ where: { tenantId } });
+        // 8. Eliminar Tables
+        await db.table.deleteMany({ where: { tenantId } });
+        // 9. Eliminar DailyBalances
+        await db.dailyBalance.deleteMany({ where: { tenantId } });
+        // 10. Eliminar SystemLogs
+        await db.systemLog.deleteMany({ where: { tenantId } });
+        // 11. Eliminar Users
+        await db.user.deleteMany({ where: { tenantId } });
+        // 12. Finalmente, eliminar el Tenant
+        await db.tenant.delete({ where: { id: tenantId } });
+    });
 
     await logSecurityEvent({
         type: 'TENANT_CREATED', // reusing available type for audit
