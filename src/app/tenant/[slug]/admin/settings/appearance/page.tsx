@@ -7,11 +7,11 @@ export default async function AppearancePage({ params }: { params: { slug: strin
     const session = await auth();
     if (!session?.user?.tenantId || session.user.role !== 'ADMIN') redirect('/login');
 
-    const tenant = await prisma.tenant.findUnique({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tenant = await (prisma.tenant as any).findUnique({
         where: { id: session.user.tenantId },
         select: {
             id: true,
-            // @ts-expect-error Prisma client is not updated yet with uiConfig
             uiConfig: true
         },
     });

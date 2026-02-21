@@ -23,7 +23,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function TenantLayout({ children, params }: TenantLayoutProps) {
     const { slug } = await params;
-    const tenant = await prisma.tenant.findUnique({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tenant = await (prisma.tenant as any).findUnique({
         where: { slug },
         select: {
             id: true,
@@ -32,7 +33,6 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
             primaryColor: true,
             secondaryColor: true,
             settings: true,
-            // @ts-expect-error Prisma client is not updated yet with uiConfig
             uiConfig: true,
             logoUrl: true
         }
