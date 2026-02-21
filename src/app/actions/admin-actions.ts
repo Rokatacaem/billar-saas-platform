@@ -18,8 +18,19 @@ import { COUNTRY_PRESETS } from "@/lib/i18n";
 export async function createTenantWithAssets(formData: FormData): Promise<{ success: boolean; error?: string }> {
     // 🛡️ SECURITY: RBAC check (Sentinel Audit)
     const session = await auth();
-    if (!session || session?.user?.role !== 'SUPER_ADMIN') {
-        console.warn(`🛑 Unauthorized tenant creation attempt by ${session?.user?.email || 'anonymous'}`);
+
+    if (!session || !session.user || !session.user.email) {
+        return { success: false, error: "No hay sesión activa" };
+    }
+
+    // Always check the real database role to bypass stale NextAuth JWT cookies
+    const currentUser = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { role: true }
+    });
+
+    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') {
+        console.warn(`🛑 Unauthorized tenant creation attempt by ${session.user.email}`);
         await logSecurityEvent({
             type: 'UNAUTHORIZED_ADMIN_ACCESS',
             severity: ThreatLevel.CRITICAL,
