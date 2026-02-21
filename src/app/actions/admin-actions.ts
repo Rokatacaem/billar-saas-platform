@@ -297,5 +297,6 @@ export async function deleteTenant(tenantId: string): Promise<{ success: boolean
     });
 
     revalidatePath('/admin/tenants');
-    return { success: true };
+    revalidatePath('/admin');
+    return { success: true as const };
 }
