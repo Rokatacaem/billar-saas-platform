@@ -9,12 +9,15 @@ export default function CockpitTableCard({ table, onSelect }: CockpitTableCardPr
     const isAvailable = table.status === 'AVAILABLE';
 
     // Status color mapping for the glowing left border
-    const statusColor = {
+    const statusColorMap: Record<string, string> = {
         'AVAILABLE': 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.15)]',
         'OCCUPIED': 'border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.15)]',
         'MAINTENANCE': 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.15)]',
         'reserved': 'border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.15)]',
-    }[table.status] || 'border-gray-500';
+    };
+
+    const statusStr = String(table.status || '');
+    const statusColor = statusColorMap[statusStr] || 'border-gray-500';
 
     return (
         <div
