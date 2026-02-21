@@ -23,17 +23,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function TenantLayout({ children, params }: TenantLayoutProps) {
     const { slug } = await params;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tenant = await (prisma.tenant as any).findUnique({
+    const tenant = await prisma.tenant.findUnique({
         where: { slug },
         select: {
             id: true,
             name: true,
-            businessModel: true,
+            type: true,
             primaryColor: true,
             secondaryColor: true,
+            backgroundColor: true,
             settings: true,
-            uiConfig: true,
             logoUrl: true
         }
     });
@@ -43,10 +42,7 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
     const themeSettings = {
         primaryColor: tenant.primaryColor,
         secondaryColor: tenant.secondaryColor,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        backgroundColor: (tenant.settings as any)?.backgroundColor || '#ffffff',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        uiConfig: tenant.uiConfig as any
+        backgroundColor: tenant.backgroundColor || '#ffffff',
     };
 
     return (
