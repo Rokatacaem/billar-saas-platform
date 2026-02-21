@@ -31,6 +31,12 @@ export default async function TenantPage({ params }: TenantPageProps) {
 
     const userRole = session?.user?.role || 'GUEST';
 
+    // 🚀 REDIRECCIÓN MÁGICA PARA ADMINISTRADORES 
+    if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+        const { redirect } = await import('next/navigation');
+        redirect(`/tenant/${slug}/admin/cockpit`);
+    }
+
     return (
         <div className="min-h-screen flex flex-col items-center p-8 bg-gray-50 text-gray-900 font-sans">
             <header className="w-full max-w-4xl flex justify-between items-center mb-12">
