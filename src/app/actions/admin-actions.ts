@@ -18,7 +18,7 @@ import { COUNTRY_PRESETS } from "@/lib/i18n";
 export async function createTenantWithAssets(formData: FormData): Promise<{ success: boolean; error?: string }> {
     // 🛡️ SECURITY: RBAC check (Sentinel Audit)
     const session = await auth();
-    if (!session || session.user.role !== 'SUPER_ADMIN') {
+    if (!session || session?.user?.role !== 'SUPER_ADMIN') {
         console.warn(`🛑 Unauthorized tenant creation attempt by ${session?.user?.email || 'anonymous'}`);
         await logSecurityEvent({
             type: 'UNAUTHORIZED_ADMIN_ACCESS',
