@@ -15,7 +15,7 @@ import { auth } from "@/auth";
 import { COUNTRY_PRESETS } from "@/lib/i18n";
 
 // 💎 Billar Factory Protocol: Atomic Creation
-export async function createTenantWithAssets(formData: FormData) {
+export async function createTenantWithAssets(formData: FormData): Promise<{ success: boolean; error?: string }> {
     // 🛡️ SECURITY: RBAC check (Sentinel Audit)
     const session = await auth();
     if (!session || session.user.role !== 'SUPER_ADMIN') {
@@ -26,7 +26,7 @@ export async function createTenantWithAssets(formData: FormData) {
             message: 'Non-SuperAdmin tried to create a tenant',
             ip: 'Server-Action'
         });
-        throw new Error("Acceso denegado: Se requiere rol SUPER_ADMIN");
+        return { success: false, error: "Acceso denegado: Se requiere rol SUPER_ADMIN" };
     }
 
     // 🛡️ SECURITY: Sanitize and validate all inputs
@@ -45,7 +45,7 @@ export async function createTenantWithAssets(formData: FormData) {
 
     // Validate required fields
     if (!rawName || !rawSlug || !rawAdminEmail || !rawAdminPassword) {
-        throw new Error("Faltan campos obligatorios");
+        return { success: false, error: "Faltan campos obligatorios" };
     }
 
     // Sanitize strings
@@ -57,18 +57,18 @@ export async function createTenantWithAssets(formData: FormData) {
     const slug = rawSlug.toLowerCase().trim().replace(/[^a-z0-9-]/g, '');
 
     if (!validateLength(slug, 3, 30)) {
-        throw new Error("El slug debe tener entre 3 y 30 caracteres válidos");
+        return { success: false, error: "El slug debe tener entre 3 y 30 caracteres válidos" };
     }
 
     // Validate email
     const adminEmail = validateEmail(rawAdminEmail);
     if (!adminEmail) {
-        throw new Error("Email inválido");
+        return { success: false, error: "Email inválido" };
     }
 
     // Validate password strength
     if (!validateLength(rawAdminPassword, 8, 100)) {
-        throw new Error("La contraseña debe tener al menos 8 caracteres");
+        return { success: false, error: "La contraseña debe tener al menos 8 caracteres" };
     }
 
     // Hash password
@@ -145,6 +145,8 @@ export async function createTenantWithAssets(formData: FormData) {
             message: `New tenant created: ${slug}`,
             details: { slug, type, country, plan }
         });
+        // Redirect on success is handled by the client now to avoid server-side throw errors
+        return { success: true };
     } catch (error) {
         console.error("❌ Factory Error:", error);
 
@@ -156,11 +158,9 @@ export async function createTenantWithAssets(formData: FormData) {
             details: { slug, error: String(error) }
         });
 
-        throw error;
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return { success: false, error: errorMessage };
     }
-
-    revalidatePath('/admin');
-    redirect('/admin');
 }
 
 export async function updateTenantStatus(tenantId: string, status: "ACTIVE" | "SUSPENDED" | "ARCHIVED") {
@@ -239,64 +239,71 @@ export async function updateBasicTenantInfo(tenantId: string, formData: FormData
  * SUPER_ADMIN only.
  */
 export async function deleteTenant(tenantId: string): Promise<{ success: boolean; error?: string }> {
-    const session = await auth();
-    if (!session || session.user.role !== 'SUPER_ADMIN') {
-        return { success: false, error: 'Acceso denegado: Se requiere rol SUPER_ADMIN' };
-    }
-
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant) return { success: false, error: 'Tenant no encontrado' };
-
     try {
-        // Intento 1: deshabilitar FK checks temporalmente en Postgres
-        await prisma.$executeRawUnsafe(`SET session_replication_role = 'replica'`);
-        await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
-        await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`);
-    } catch (primaryError) {
-        // Restaurar modo normal si falló
-        await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`).catch(() => { });
-        console.error('⚠️ Primary delete failed, trying manual cascade:', primaryError);
-
-        // Fallback: eliminación manual en orden de dependencias
-        try {
-            const tables = [
-                `DELETE FROM "SystemLog" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "UsageLog" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "ServiceRequest" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "MaintenanceLog" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "StockMovement" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "TierChange" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "MembershipPayment" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "PaymentRecord" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "Member" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "MembershipPlan" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "DailyBalance" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "Table" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "Product" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "FolioRange" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "User" WHERE "tenantId" = '${tenantId}'`,
-                `DELETE FROM "Tenant" WHERE id = '${tenantId}'`,
-            ];
-            for (const sql of tables) {
-                await prisma.$executeRawUnsafe(sql).catch(e =>
-                    console.warn(`⚠️ Skip: ${sql.split(' ')[2]}`, (e as Error).message)
-                );
-            }
-        } catch (fallbackError) {
-            const msg = (fallbackError as Error).message;
-            console.error('❌ Fallback delete failed:', msg);
-            return { success: false, error: `Error al eliminar: ${msg}` };
+        const session = await auth();
+        if (!session || session.user.role !== 'SUPER_ADMIN') {
+            return { success: false, error: 'Acceso denegado: Se requiere rol SUPER_ADMIN' };
         }
+
+        const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+        if (!tenant) return { success: false, error: 'Tenant no encontrado' };
+
+        try {
+            // Intento 1: deshabilitar FK checks temporalmente en Postgres
+            await prisma.$executeRawUnsafe(`SET session_replication_role = 'replica'`);
+            await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
+            await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`);
+        } catch (primaryError) {
+            // Restaurar modo normal si falló
+            await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`).catch(() => { });
+            console.error('⚠️ Primary delete failed, trying manual cascade:', primaryError);
+
+            // Fallback: eliminación manual en orden de dependencias
+            try {
+                const tables = [
+                    `DELETE FROM "SystemLog" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "UsageLog" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "ServiceRequest" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "MaintenanceLog" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "StockMovement" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "TierChange" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "MembershipPayment" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "PaymentRecord" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "Member" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "MembershipPlan" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "DailyBalance" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "Table" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "Product" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "FolioRange" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "User" WHERE "tenantId" = '${tenantId}'`,
+                    `DELETE FROM "Tenant" WHERE id = '${tenantId}'`,
+                ];
+                for (const sql of tables) {
+                    await prisma.$executeRawUnsafe(sql).catch(e =>
+                        console.warn(`⚠️ Skip: ${sql.split(' ')[2]}`, (e as Error).message)
+                    );
+                }
+            } catch (fallbackError) {
+                const msg = (fallbackError as Error).message;
+                console.error('❌ Fallback delete failed:', msg);
+                return { success: false, error: `Error al eliminar: ${msg}` };
+            }
+        }
+
+        await logSecurityEvent({
+            type: 'TENANT_CREATED',
+            severity: ThreatLevel.HIGH,
+            message: `Tenant deleted: ${tenant.slug} (${tenant.name})`,
+            details: { tenantId, slug: tenant.slug }
+        });
+
+        // Nota: No usar revalidatePath aquí — provoca re-render de /admin/billing que puede crashear.
+        // El cliente usa router.refresh() para actualizar la lista de tenants.
+        return { success: true as const };
+    } catch (masterError) {
+        // Captura cualquier excepción no manejada para evitar el Critical Error de Next.js
+        const msg = masterError instanceof Error ? masterError.message : String(masterError);
+        console.error('❌ deleteTenant master catch:', msg);
+        return { success: false, error: msg };
     }
-
-    await logSecurityEvent({
-        type: 'TENANT_CREATED',
-        severity: ThreatLevel.HIGH,
-        message: `Tenant deleted: ${tenant.slug} (${tenant.name})`,
-        details: { tenantId, slug: tenant.slug }
-    });
-
-    // Nota: No usar revalidatePath aquí — provoca re-render de /admin/billing que puede crashear.
-    // El cliente usa router.refresh() para actualizar la lista de tenants.
-    return { success: true as const };
 }

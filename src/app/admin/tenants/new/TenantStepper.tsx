@@ -104,10 +104,15 @@ export default function TenantStepper() {
         Object.entries(formData).forEach(([key, value]) => data.append(key, value));
 
         try {
-            await createTenantWithAssets(data);
-            toast.success('¡Tenant creado con éxito!');
+            const result = await createTenantWithAssets(data);
+            if (result.success) {
+                toast.success('¡Tenant creado con éxito!');
+                window.location.href = '/admin'; // Hard redirect to refresh state
+            } else {
+                toast.error(result.error || 'Error al crear tenant');
+            }
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Error al crear tenant');
+            toast.error(error instanceof Error ? error.message : 'Error de red inesperado');
         } finally {
             setIsSubmitting(false);
         }
@@ -227,7 +232,7 @@ function Step1Data({ data, onChange }: { data: any, onChange: (e: any) => void }
                         value={data.name}
                         onChange={onChange}
                         placeholder="Ej: Akapoolco Billar"
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     />
                 </div>
                 <div className="space-y-2">
@@ -238,9 +243,9 @@ function Step1Data({ data, onChange }: { data: any, onChange: (e: any) => void }
                             value={data.slug}
                             onChange={onChange}
                             placeholder="akapoolco"
-                            className="flex-1 px-4 py-2 rounded-l-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all lowercase"
+                            className="flex-1 px-4 py-2 rounded-l-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all lowercase"
                         />
-                        <span className="px-3 py-2 bg-gray-100 dark:bg-gray-900 border border-l-0 border-gray-200 dark:border-gray-600 rounded-r-lg text-sm text-gray-500">
+                        <span className="px-3 py-2 bg-gray-100 dark:bg-gray-900 border border-l-0 border-gray-200 dark:border-gray-600 rounded-r-lg text-sm text-gray-500 dark:text-gray-400">
                             .billarpro.cl
                         </span>
                     </div>
@@ -251,7 +256,7 @@ function Step1Data({ data, onChange }: { data: any, onChange: (e: any) => void }
                         name="country"
                         value={data.country}
                         onChange={onChange}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     >
                         <option value="CL">Chile (CLP)</option>
                         <option value="PE">Perú (PEN)</option>
@@ -462,36 +467,36 @@ function Step4Access({ data, onChange, onSelectPlan }: { data: any, onChange: (e
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Nombre del Owner</label>
+                        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Nombre del Owner</label>
                         <input
                             name="adminName"
                             value={data.adminName}
                             onChange={onChange}
                             placeholder="Rodrigo K."
-                            className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 outline-none"
+                            className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                         />
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Email Administrativo</label>
+                        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Email Administrativo</label>
                         <input
                             name="adminEmail"
                             value={data.adminEmail}
                             onChange={onChange}
                             placeholder="admin@club.cl"
-                            className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 outline-none"
+                            className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                         />
                     </div>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Contraseña Temporal</label>
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Contraseña Temporal</label>
                     <input
                         type="password"
                         name="adminPassword"
                         value={data.adminPassword}
                         onChange={onChange}
                         placeholder="••••••••"
-                        className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 outline-none"
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     />
                 </div>
 
@@ -503,11 +508,11 @@ function Step4Access({ data, onChange, onSelectPlan }: { data: any, onChange: (e
                             onClick={() => onSelectPlan(plan)}
                             className={cn(
                                 "p-4 rounded-xl border-2 text-center transition-all",
-                                data.plan === plan ? "border-indigo-600 bg-indigo-50" : "border-gray-100"
+                                data.plan === plan ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/40" : "border-gray-100 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-700"
                             )}
                         >
-                            <span className="text-xs font-bold text-indigo-600">{plan}</span>
-                            <div className="text-lg font-bold mt-1">
+                            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{plan}</span>
+                            <div className="text-lg font-bold mt-1 text-gray-900 dark:text-white">
                                 {plan === 'BASIC' ? '$29' : plan === 'PRO' ? '$59' : '$199'}/mes
                             </div>
                         </button>
