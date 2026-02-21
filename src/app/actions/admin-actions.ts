@@ -252,9 +252,35 @@ export async function deleteTenant(tenantId: string): Promise<{ success: true }>
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) throw new Error("Tenant no encontrado");
 
-    // Usar DELETE SQL directo para que Postgres aplique el ON DELETE CASCADE nativo.
-    // Esto evita tener que enumerar todas las tablas relacionadas manualmente.
-    await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
+    // Deshabilitar FK checks temporalmente en Postgres para garantizar
+    // la eliminación cuando ON DELETE CASCADE no está reforzado
+    try {
+        await prisma.$executeRawUnsafe(`SET session_replication_role = 'replica'`);
+        await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
+        await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`);
+    } catch (deleteError) {
+        // Si session_replication_role no está disponible (Neon pooler), usar eliminación manual
+        await prisma.$executeRawUnsafe(`SET session_replication_role = 'DEFAULT'`).catch(() => { });
+        console.error('❌ Delete tenant error (fallback manual):', deleteError);
+
+        // Fallback: eliminar tablas esenciales que sabemos existen
+        await prisma.$executeRaw`DELETE FROM "SystemLog" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "UsageLog" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "ServiceRequest" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "MaintenanceLog" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "StockMovement" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "TierChange" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "MembershipPayment" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "PaymentRecord" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "Member" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "MembershipPlan" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "DailyBalance" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "Table" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "Product" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "FolioRange" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "User" WHERE "tenantId" = ${tenantId}`;
+        await prisma.$executeRaw`DELETE FROM "Tenant" WHERE id = ${tenantId}`;
+    }
 
     await logSecurityEvent({
         type: 'TENANT_CREATED', // reusing available type for audit
